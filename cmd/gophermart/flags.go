@@ -10,6 +10,9 @@ import (
 )
 
 /*
+sudo -i -u postgres
+psql -U postgres
+
 POSTGRE USER && DATABASE:
 
 create user market with encrypted password '12345678';
