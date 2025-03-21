@@ -14,7 +14,7 @@ import (
 )
 
 var timeouts = []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second}
-var maxRetries = 3
+var maxRetries = len(timeouts)
 
 func isConnectionError(err error) bool {
 	var pgErr *pgconn.PgError

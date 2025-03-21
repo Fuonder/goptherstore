@@ -102,7 +102,8 @@ var (
 			ipaddr: "localhost",
 			port:   8080,
 		},
-		DatabaseDSN: "postgres://market:12345678@localhost:5432/market?sslmode=disable",
+		//DatabaseDSN: "postgres://market:12345678@localhost:5432/market?sslmode=disable",
+		DatabaseDSN: "",
 		LogLevel:    "info",
 	}
 )
@@ -111,7 +112,7 @@ func parseFlags() error {
 	flag.Usage = usage
 	flag.Var(&CliOptions.APIAddress, "a", "ip and port of server in format <ip>:<port>")
 	flag.Var(&CliOptions.AccrualAddress, "r", "ip and port of accrual service in format <ip>:<port>")
-	flag.StringVar(&CliOptions.DatabaseDSN, "d", "postgres://market:12345678@localhost:5432/market?sslmode=disable", "Database DSN")
+	flag.StringVar(&CliOptions.DatabaseDSN, "d", "", "Database DSN")
 	flag.StringVar(&CliOptions.LogLevel, "l", "info", "loglevel")
 
 	flag.Parse()
@@ -131,6 +132,7 @@ func parseFlags() error {
 	if envDatabaseDSN := os.Getenv("DATABASE_DSN"); envDatabaseDSN != "" {
 		CliOptions.DatabaseDSN = envDatabaseDSN
 	}
+	fmt.Println(CliOptions.DatabaseDSN)
 
 	if envLogLevel := os.Getenv("LOG_LEVEL"); envLogLevel != "" {
 		CliOptions.LogLevel = envLogLevel
