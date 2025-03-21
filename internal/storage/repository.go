@@ -1,6 +1,42 @@
 package storage
 
-import "context"
+import (
+	"context"
+	"time"
+)
+
+type MartUser struct {
+	ID        int       `json:"id"`
+	Login     string    `json:"login"`
+	Password  string    `json:"pwd"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type MartUserWallet struct {
+	ID            int       `json:"id"`
+	OwnerID       int       `json:"user_id"`
+	Balance       int       `json:"balance"`
+	TotalWithdraw int       `json:"total_withdraw"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+type MartOrder struct {
+	ID        int       `json:"id"`
+	UserID    int       `json:"user_id"`
+	OrderID   int       `json:"order_id"`
+	Status    string    `json:"status"`
+	Bonus     int       `json:"bonus,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type Withdrawal struct {
+	ID        int       `json:"id"`
+	UserID    int       `json:"user_id"`
+	OrderID   int       `json:"order_id"`
+	Amount    int       `json:"amount"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+}
 
 type DBWriter interface {
 	/*
@@ -24,7 +60,7 @@ type DBConnection interface {
 	DBWriter
 	DBReader
 	ConnectCtx(ctx context.Context) error
-	//MigrateCtx(ctx context.Context) error
+	MigrateCtx(ctx context.Context) error
 	//PingCtx(ctx context.Context) error
 	Close() error
 }

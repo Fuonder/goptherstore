@@ -46,6 +46,12 @@ func NewConnection(ctx context.Context, settings string) (*Connection, error) {
 	if err != nil {
 		return &Connection{}, fmt.Errorf("access to database: %v", err)
 	}
+
+	err = c.MigrateCtx(ctx)
+	if err != nil {
+		return &Connection{}, fmt.Errorf("%v", err)
+	}
+	logger.Log.Info("Migration successful")
 	return c, nil
 }
 
@@ -74,6 +80,21 @@ func (c *Connection) ConnectCtx(ctx context.Context) error {
 		}
 	}
 	return fmt.Errorf("can not access database2: %v", err)
+}
+
+func (c *Connection) MigrateCtx(ctx context.Context) error {
+	logger.Log.Info("Migrating database")
+	tx, err := c.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.ExecContext(ctx, MigrationQuery)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (c *Connection) Close() error {

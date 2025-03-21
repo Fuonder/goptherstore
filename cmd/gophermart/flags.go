@@ -112,7 +112,7 @@ func parseFlags() error {
 	flag.Usage = usage
 	flag.Var(&CliOptions.APIAddress, "a", "ip and port of server in format <ip>:<port>")
 	flag.Var(&CliOptions.AccrualAddress, "r", "ip and port of accrual service in format <ip>:<port>")
-	flag.StringVar(&CliOptions.DatabaseDSN, "d", "", "Database DSN")
+	flag.StringVar(&CliOptions.DatabaseDSN, "d", "postgres://market:12345678@localhost:5432/market?sslmode=disable", "Database DSN")
 	flag.StringVar(&CliOptions.LogLevel, "l", "info", "loglevel")
 
 	flag.Parse()

@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"fmt"
 	"github.com/Fuonder/goptherstore.git/internal/httpserver/middleware"
 	"github.com/Fuonder/goptherstore.git/internal/logger"
 	"github.com/go-chi/chi/v5"
@@ -15,8 +16,11 @@ func NewRouterObject(h Handlers) *RouterObject {
 	return &RouterObject{h: h, chRouter: chi.NewRouter()}
 }
 
-func (r *RouterObject) GetRouter() chi.Router {
-	logger.Log.Debug("Creating Router")
+func (r *RouterObject) GetRouter() (chi.Router, error) {
+	if r.chRouter == nil {
+		return nil, fmt.Errorf("router not initialized")
+	}
+	logger.Log.Debug("Configuring Router")
 	r.chRouter.Route("/api/user", func(router chi.Router) {
 		router.Route("/register", func(router chi.Router) {
 			router.Post("/", logger.HanlderWithLogger(r.h.RegisterHandler))
@@ -40,7 +44,8 @@ func (r *RouterObject) GetRouter() chi.Router {
 			router.Post("/", logger.HanlderWithLogger(r.h.GetWithdrawalsHandler))
 		})
 	})
-	return r.chRouter
+	logger.Log.Info("Successfully initialized Router")
+	return r.chRouter, nil
 }
 
 /*
