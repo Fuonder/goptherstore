@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/Fuonder/goptherstore.git/internal/httpServer"
+	"github.com/Fuonder/goptherstore.git/internal/httpserver"
 	"github.com/Fuonder/goptherstore.git/internal/logger"
 	"github.com/Fuonder/goptherstore.git/internal/storage/postrge"
 	"go.uber.org/zap"
@@ -38,6 +38,6 @@ func run() error {
 	}
 	storage := postrge.NewPsqlStorage(ctx, DBConn)
 
-	service := httpServer.NewService(CliOptions.APIAddress.String(), storage)
+	service := httpserver.NewService(CliOptions.APIAddress.String(), storage)
 	return service.Run()
 }

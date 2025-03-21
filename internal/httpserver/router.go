@@ -1,7 +1,7 @@
-package httpServer
+package httpserver
 
 import (
-	"github.com/Fuonder/goptherstore.git/internal/httpServer/middleware"
+	"github.com/Fuonder/goptherstore.git/internal/httpserver/middleware"
 	"github.com/Fuonder/goptherstore.git/internal/logger"
 	"github.com/go-chi/chi/v5"
 )

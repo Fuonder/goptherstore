@@ -10,7 +10,7 @@ func Auth(next http.Handler) http.Handler {
 		logger.Log.Debug("Auth middleware")
 
 		http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		
+
 		//// TODO: JWT Validation
 		//next.ServeHTTP(rw, r)
 	})

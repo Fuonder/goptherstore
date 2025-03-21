@@ -56,6 +56,7 @@ func (n *netAddress) String() string {
 	return fmt.Sprintf("%s:%d", n.ipaddr, n.port)
 }
 func (n *netAddress) Set(value string) error {
+	value = strings.TrimPrefix(value, "http://")
 	values := strings.Split(value, ":")
 	if len(values) != 2 {
 		return fmt.Errorf("%w: \"%s\"", ErrNotFullIP, value)

@@ -1,4 +1,4 @@
-package httpServer
+package httpserver
 
 import (
 	"github.com/Fuonder/goptherstore.git/internal/logger"
