@@ -1,8 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/Fuonder/goptherstore.git/internal/httpServer"
+	"github.com/Fuonder/goptherstore.git/internal/logger"
+	"github.com/Fuonder/goptherstore.git/internal/storage/postrge"
+	"go.uber.org/zap"
 	"log"
+	"time"
 )
 
 func main() {
@@ -10,15 +16,28 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(CliOptions.String())
+	if err := logger.Initialize(CliOptions.LogLevel); err != nil {
+		panic(fmt.Errorf("method main: %v", err))
+	}
+	logger.Log.Debug("Flags parsed",
+		zap.String("flags", CliOptions.String()))
 
-	err = run()
-	if err != nil {
-		log.Fatal(err)
+	logger.Log.Info("Starting service")
+	if err = run(); err != nil {
+		logger.Log.Fatal("", zap.Error(err))
 	}
 }
 
 func run() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	return nil
+	DBConn, err := postrge.NewConnection(ctx, CliOptions.DatabaseDSN)
+	if err != nil {
+		return err
+	}
+	storage := postrge.NewPsqlStorage(ctx, DBConn)
+
+	service := httpServer.NewService(CliOptions.APIAddress.String(), storage)
+	return service.Run()
 }

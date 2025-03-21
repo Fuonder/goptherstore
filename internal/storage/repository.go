@@ -24,12 +24,13 @@ type DBConnection interface {
 	DBWriter
 	DBReader
 	ConnectCtx(ctx context.Context) error
-	MigrateCtx(ctx context.Context) error
-	PingCtx(ctx context.Context) error
+	//MigrateCtx(ctx context.Context) error
+	//PingCtx(ctx context.Context) error
+	Close() error
 }
 
 type AuthService interface {
-	Register(ctx context.Context, username string, password string) error
+	Register(ctx context.Context, username string, password string) (token string, err error)
 	Login(ctx context.Context, username string, password string) (token string, err error)
 }
 
