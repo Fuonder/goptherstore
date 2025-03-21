@@ -129,7 +129,7 @@ func parseFlags() error {
 			return err
 		}
 	}
-	if envDatabaseDSN := os.Getenv("DATABASE_DSN"); envDatabaseDSN != "" {
+	if envDatabaseDSN := os.Getenv("DATABASE_URI"); envDatabaseDSN != "" {
 		CliOptions.DatabaseDSN = envDatabaseDSN
 	}
 	fmt.Println(CliOptions.DatabaseDSN)
