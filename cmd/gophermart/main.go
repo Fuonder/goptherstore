@@ -19,7 +19,7 @@ func main() {
 	if err := logger.Initialize(CliOptions.LogLevel); err != nil {
 		panic(fmt.Errorf("method main: %v", err))
 	}
-	logger.Log.Debug("Flags parsed",
+	logger.Log.Info("Flags parsed",
 		zap.String("flags", CliOptions.String()))
 
 	logger.Log.Info("Starting service")
