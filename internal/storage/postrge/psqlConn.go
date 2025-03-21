@@ -63,17 +63,17 @@ func (c *Connection) ConnectCtx(ctx context.Context) error {
 			return nil
 		} else if isConnectionError(err) {
 			if i < len(timeouts) {
-				logger.Log.Info("can not access database", zap.Error(err))
+				logger.Log.Info("can not access database0", zap.Error(err))
 				logger.Log.Info("retrying after timeout",
 					zap.Duration("timeout", timeouts[i]),
 					zap.Int("retry-count", i+1))
 				time.Sleep(timeouts[i])
 			}
 		} else {
-			return fmt.Errorf("can not access database: %v", err)
+			return fmt.Errorf("can not access database1: %v", err)
 		}
 	}
-	return fmt.Errorf("can not access database: %v", err)
+	return fmt.Errorf("can not access database2: %v", err)
 }
 
 func (c *Connection) Close() error {
