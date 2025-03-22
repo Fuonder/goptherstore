@@ -2,9 +2,9 @@ package httpserver
 
 import (
 	"fmt"
-	"github.com/Fuonder/goptherstore.git/internal/httpserver/middleware"
 	"github.com/Fuonder/goptherstore.git/internal/logger"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 type RouterObject struct {
@@ -21,6 +21,7 @@ func (r *RouterObject) GetRouter() (chi.Router, error) {
 		return nil, fmt.Errorf("router not initialized")
 	}
 	logger.Log.Debug("Configuring Router")
+	r.chRouter.Use(middleware.Compress(5))
 	r.chRouter.Route("/api/user", func(router chi.Router) {
 		router.Route("/register", func(router chi.Router) {
 			router.Post("/", logger.HanlderWithLogger(r.h.RegisterHandler))
@@ -30,17 +31,17 @@ func (r *RouterObject) GetRouter() (chi.Router, error) {
 		})
 
 		router.Route("/orders", func(router chi.Router) {
-			router.Use(middleware.Auth)
+			router.Use(r.h.AuthMiddleware)
 			router.Post("/", logger.HanlderWithLogger(r.h.PostOrdersHandler))
 			router.Get("/", logger.HanlderWithLogger(r.h.GetOrdersHandler))
 		})
 		router.Route("/balance", func(router chi.Router) {
-			router.Use(middleware.Auth)
+			router.Use(r.h.AuthMiddleware)
 			router.Get("/", logger.HanlderWithLogger(r.h.GetBalanceHandler))
 			router.Post("/withdraw", logger.HanlderWithLogger(r.h.PostWithdrawHandler))
 		})
 		router.Route("/withdrawals", func(router chi.Router) {
-			router.Use(middleware.Auth)
+			router.Use(r.h.AuthMiddleware)
 			router.Post("/", logger.HanlderWithLogger(r.h.GetWithdrawalsHandler))
 		})
 	})

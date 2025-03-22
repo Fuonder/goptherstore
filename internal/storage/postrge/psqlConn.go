@@ -6,10 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Fuonder/goptherstore.git/internal/logger"
+	"github.com/Fuonder/goptherstore.git/internal/storage"
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -30,6 +33,7 @@ func isConnectionError(err error) bool {
 
 type Connection struct {
 	db *sql.DB
+	mu sync.RWMutex
 }
 
 func NewConnection(ctx context.Context, settings string) (*Connection, error) {
@@ -96,6 +100,84 @@ func (c *Connection) MigrateCtx(ctx context.Context) error {
 	}
 	return tx.Commit()
 }
+
+func (c *Connection) CheckLoginPresence(ctx context.Context, user storage.MartUser) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	var count int
+	err := c.db.QueryRowContext(ctx, SearchUserQuery, user.Login).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to check login presence: %w", err)
+	}
+	if count > 0 {
+		return storage.ErrUserAlreadyExists
+	}
+	return nil
+}
+func (c *Connection) CreateUser(ctx context.Context, newUser storage.MartUser) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	tx, err := c.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	// login, pwd, date
+	_, err = tx.ExecContext(
+		ctx, InsertUserQuery,
+		newUser.Login,
+		string(hashedPassword),
+		newUser.CreatedAt,
+	)
+	if err != nil {
+		return storage.ErrUserCreationFailed
+	}
+	return tx.Commit()
+}
+
+func (c *Connection) ValidateUserCredentials(ctx context.Context, user storage.MartUser) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	var hashPassword string
+	err := c.db.QueryRowContext(ctx, GetUserPasswordQuery, user.Login).Scan(&hashPassword)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return storage.ErrWrongCredentials
+		}
+		return err
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(hashPassword), []byte(user.Password))
+	if err != nil {
+		return storage.ErrWrongCredentials
+	}
+	return nil
+}
+
+//func (c *Connection) Register(ctx context.Context, newUser storage.MartUser) (token string, err error) {
+//	err = c.CheckLoginPresence(ctx, newUser)
+//	if err != nil {
+//		return "", err
+//	}
+//
+//	err = c.CreateUser(ctx, newUser)
+//	if err != nil {
+//		return "", err
+//	}
+//	token, err = c.GetJWT(ctx, newUser)
+//	if err != nil {
+//		return "", err
+//	}
+//	return token, nil
+//}
+//
+//func (c *Connection) Login(ctx context.Context, user storage.MartUser) (string, error) {
+//}
 
 func (c *Connection) Close() error {
 	return c.db.Close()

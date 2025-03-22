@@ -39,4 +39,11 @@ const (
 	CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 	CREATE INDEX IF NOT EXISTS idx_withdrawals_user_id ON withdrawals(user_id);
 	`
+
+	SearchUserQuery = `SELECT COUNT(*) FROM users WHERE login = $1;`
+	InsertUserQuery = `
+						INSERT INTO users (login, password_hash, created_at) 
+						VALUES ($1, $2, $3);
+						`
+	GetUserPasswordQuery = `SELECT password_hash FROM users WHERE login = $1;`
 )

@@ -37,7 +37,7 @@ func run() error {
 		return err
 	}
 
-	storage := postrge.NewPsqlStorage(ctx, DBConn)
+	storage := postrge.NewPsqlStorage(ctx, DBConn, []byte(CliOptions.Key))
 
 	service, err := httpserver.NewService(CliOptions.APIAddress.String(), storage)
 	if err != nil {

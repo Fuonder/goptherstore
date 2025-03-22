@@ -78,17 +78,20 @@ type Flags struct {
 	AccrualAddress netAddress
 	DatabaseDSN    string
 	LogLevel       string
+	Key            string
 }
 
 func (f *Flags) String() string {
 	return fmt.Sprintf("APIAddress: %s, "+
 		"AccrualAddress: %s, "+
 		"DatabaseDSN: %s, "+
-		"LogLevel: %s",
+		"LogLevel: %s"+
+		"Key: %s",
 		f.APIAddress.String(),
 		f.AccrualAddress.String(),
 		f.DatabaseDSN,
 		f.LogLevel,
+		f.Key,
 	)
 }
 
@@ -114,6 +117,7 @@ func parseFlags() error {
 	flag.Var(&CliOptions.AccrualAddress, "r", "ip and port of accrual service in format <ip>:<port>")
 	flag.StringVar(&CliOptions.DatabaseDSN, "d", "postgres://market:12345678@localhost:5432/market?sslmode=disable", "Database DSN")
 	flag.StringVar(&CliOptions.LogLevel, "l", "info", "loglevel")
+	flag.StringVar(&CliOptions.Key, "k", "TEST123", "encryption key")
 
 	flag.Parse()
 
@@ -136,6 +140,9 @@ func parseFlags() error {
 
 	if envLogLevel := os.Getenv("LOG_LEVEL"); envLogLevel != "" {
 		CliOptions.LogLevel = envLogLevel
+	}
+	if envSecret := os.Getenv("SECRET"); envSecret != "" {
+		CliOptions.Key = envSecret
 	}
 
 	return nil

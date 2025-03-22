@@ -2,8 +2,21 @@ package storage
 
 import (
 	"context"
+	"errors"
+	"github.com/dgrijalva/jwt-go"
 	"time"
 )
+
+var (
+	ErrUserAlreadyExists  = errors.New("user already exists")
+	ErrUserCreationFailed = errors.New("user creation failed")
+	ErrWrongCredentials   = errors.New("wrong credentials")
+)
+
+type Claims struct {
+	Username string `json:"username"`
+	jwt.StandardClaims
+}
 
 type MartUser struct {
 	ID        int       `json:"id"`
@@ -39,6 +52,7 @@ type Withdrawal struct {
 }
 
 type DBWriter interface {
+	CreateUser(ctx context.Context, newUser MartUser) error
 	/*
 		1. Записать пользователя
 		2. Записать заказ (начисление)
@@ -47,6 +61,9 @@ type DBWriter interface {
 }
 
 type DBReader interface {
+	CheckLoginPresence(ctx context.Context, user MartUser) error
+	ValidateUserCredentials(ctx context.Context, user MartUser) error
+
 	/*
 		1. Получить пароль по логину
 		2. Получить список всех заказов по пользователю (начислений)
@@ -56,18 +73,20 @@ type DBReader interface {
 	*/
 }
 
+type AuthService interface {
+	Register(ctx context.Context, newUser MartUser) (token string, err error)
+	Login(ctx context.Context, user MartUser) (token string, err error)
+	GetKey() []byte
+}
+
 type DBConnection interface {
 	DBWriter
 	DBReader
+	//AuthService
 	ConnectCtx(ctx context.Context) error
 	MigrateCtx(ctx context.Context) error
 	//PingCtx(ctx context.Context) error
 	Close() error
-}
-
-type AuthService interface {
-	Register(ctx context.Context, username string, password string) (token string, err error)
-	Login(ctx context.Context, username string, password string) (token string, err error)
 }
 
 type AccrualService interface {
