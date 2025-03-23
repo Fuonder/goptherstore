@@ -101,6 +101,7 @@ func (b *BonusAPIService) GetAccrualStatus(order storage.MartOrder) error {
 		if responseOrder.Status == AccrualStatusProcessed || responseOrder.Status == AccrualStatusInvalid {
 			logger.Log.Info("Status of response is ok", zap.Any("response", responseOrder.Status))
 			logger.Log.Info("Updating database")
+			responseOrder.OrderID = order.OrderID
 			err = b.st.UpdateOrder(ctx, responseOrder)
 			if err != nil {
 				return err
