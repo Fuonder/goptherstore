@@ -146,6 +146,10 @@ func (h Handlers) PostOrdersHandler(rw http.ResponseWriter, r *http.Request) {
 	err = h.st.RegisterOrder(ctx, string(orderNumberBytes), UID)
 	if err != nil {
 		if errors.Is(err, storage.ErrOrderAlreadyExists) {
+			rw.WriteHeader(http.StatusOK)
+			rw.Write([]byte(http.StatusText(http.StatusOK)))
+			return
+		} else if errors.Is(err, storage.ErrOrderOfOtherUser) {
 			rw.WriteHeader(http.StatusConflict)
 			rw.Write([]byte(http.StatusText(http.StatusConflict)))
 			return
