@@ -126,6 +126,7 @@ func (h Handlers) PostOrdersHandler(rw http.ResponseWriter, r *http.Request) {
 		rw.Write([]byte(http.StatusText(http.StatusUnprocessableEntity)))
 		return
 	}
+	logger.Log.Info("GOT ORDER", zap.String("order", string(orderNumberBytes)))
 
 	if ok := isValidLuhn(string(orderNumberBytes)); !ok {
 		rw.WriteHeader(http.StatusUnprocessableEntity)
