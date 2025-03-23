@@ -496,6 +496,9 @@ func (c *Connection) UpdateOrder(ctx context.Context, order storage.MartOrder) e
 			order.OrderID,
 		)
 	}
+	if err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
