@@ -13,6 +13,7 @@ var (
 	ErrWrongCredentials   = errors.New("wrong credentials")
 	ErrOrderAlreadyExists = errors.New("order already exists")
 	ErrOrderOfOtherUser   = errors.New("order already registered by other user")
+	ErrNoData             = errors.New("no data")
 )
 
 type Claims struct {
@@ -36,8 +37,8 @@ type MartUserWallet struct {
 }
 
 type MartOrder struct {
-	ID        int       `json:"id"`
-	UserID    int       `json:"user_id"`
+	ID        int       `json:"-"`
+	UserID    int       `json:"-"`
 	OrderID   string    `json:"order_id"`
 	Status    string    `json:"status"`
 	Bonus     int       `json:"bonus,omitempty"`
@@ -67,6 +68,7 @@ type DBReader interface {
 	CheckLoginPresence(ctx context.Context, user MartUser) error
 	ValidateUserCredentials(ctx context.Context, user MartUser) error
 	GetUIDByUsername(ctx context.Context, username string) (int, error)
+	GetUserOrders(ctx context.Context, UID int) ([]MartOrder, error)
 
 	/*
 		1. Получить пароль по логину
@@ -102,6 +104,7 @@ type Storage interface {
 	AccrualService
 	RegisterOrder(ctx context.Context, orderNumber string, UID int) error
 	GetUID(ctx context.Context, login string) (int, error)
+	GetOrdersByUID(ctx context.Context, UID int) (orders []MartOrder, err error)
 
 	/*
 		1. Зарегистрировать пользователя

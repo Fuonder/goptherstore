@@ -51,4 +51,10 @@ const (
 	InsertNewOrderQuery      = `
 							INSERT INTO orders (user_id, order_number, created_at, status, bonus_amount) 
 							VALUES ($1, $2, $3, $4, $5);`
+
+	GetOrdersByUID = `
+						SELECT order_number, status, bonus_amount, created_at 
+						FROM orders 
+						WHERE user_id = $1 
+						ORDER BY created_at DESC;`
 )

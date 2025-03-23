@@ -104,6 +104,14 @@ func (p *PsqlStorage) RegisterOrder(ctx context.Context, orderNumber string, UID
 	return nil
 }
 
+func (p *PsqlStorage) GetOrdersByUID(ctx context.Context, UID int) (orders []storage.MartOrder, err error) {
+	orders, err = p.conn.GetUserOrders(ctx, UID)
+	if err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
+
 func (p *PsqlStorage) GetKey() []byte {
 	return p.secret
 }

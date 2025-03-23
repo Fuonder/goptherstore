@@ -226,6 +226,46 @@ func (c *Connection) GetUIDByUsername(ctx context.Context, username string) (int
 	return UID, nil
 }
 
+func (c *Connection) GetUserOrders(ctx context.Context, UID int) ([]storage.MartOrder, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	rows, err := c.db.QueryContext(ctx, GetOrdersByUID, UID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query orders: %v", err)
+	}
+	defer rows.Close()
+	orders := make([]storage.MartOrder, 0)
+
+	for rows.Next() {
+		var order storage.MartOrder
+		var bonus sql.NullFloat64
+		//var createdAt time.Time
+
+		if err := rows.Scan(&order.OrderID, &order.Status, &bonus, &order.CreatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %v", err)
+		}
+
+		//order.CreatedAt = createdAt.Format("2006-01-02T15:04:05-07:00")
+
+		if bonus.Valid && bonus.Float64 > 0 {
+			accrual := int(bonus.Float64)
+			order.Bonus = accrual
+		}
+
+		orders = append(orders, order)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error during row iteration: %v", err)
+	}
+
+	logger.Log.Info("RESULT", zap.Any("orders", orders))
+	if len(orders) == 0 {
+		return nil, storage.ErrNoData
+	}
+	return orders, nil
+}
+
 func (c *Connection) Close() error {
 	return c.db.Close()
 }
