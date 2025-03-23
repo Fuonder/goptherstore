@@ -196,14 +196,18 @@ func (c *Connection) isOrderExists(ctx context.Context, orderNumber string, UID 
 	ownerID := 0
 	err := c.db.QueryRowContext(ctx, SearchOrderByNumberQuery, orderNumber).Scan(&ownerID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return fmt.Errorf("failed to check order_number presence: %w", err)
 	}
-	if ownerID == UID {
+	if ownerID != 0 {
+		if ownerID == UID {
+			return storage.ErrOrderAlreadyExists
+		}
 		return storage.ErrOrderOfOtherUser
 	}
-	if ownerID != 0 {
-		return storage.ErrOrderAlreadyExists
-	}
+
 	return nil
 }
 
