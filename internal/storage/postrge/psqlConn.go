@@ -137,6 +137,7 @@ func (c *Connection) CreateUser(ctx context.Context, newUser storage.MartUser) e
 	if err != nil {
 		return storage.ErrUserCreationFailed
 	}
+
 	return tx.Commit()
 }
 
@@ -264,6 +265,50 @@ func (c *Connection) GetUserOrders(ctx context.Context, UID int) ([]storage.Mart
 		return nil, storage.ErrNoData
 	}
 	return orders, nil
+}
+
+func (c *Connection) GetUserWallet(ctx context.Context, UID int) (wallet storage.MartUserWallet, err error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	wallet = storage.MartUserWallet{}
+
+	err = c.db.QueryRowContext(ctx, GetWalletByUID, UID).Scan(&wallet.Balance, &wallet.TotalWithdraw)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return storage.MartUserWallet{}, err
+		}
+		return storage.MartUserWallet{}, fmt.Errorf("failed to get wallet info: %w", err)
+	}
+
+	return wallet, nil
+
+}
+
+func (c *Connection) CreateUserWallet(ctx context.Context, login string) error {
+	UID, err := c.GetUIDByUsername(ctx, login)
+	if err != nil {
+		return err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	tx, err := c.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(
+		ctx, CreateUserWalletQuery,
+		UID,
+		0,
+		0,
+		time.Now(),
+	)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+
 }
 
 func (c *Connection) Close() error {

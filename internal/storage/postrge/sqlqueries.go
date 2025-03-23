@@ -12,8 +12,8 @@ const (
 	CREATE TABLE IF NOT EXISTS wallets (
 		id SERIAL PRIMARY KEY,
 		user_id INT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		balance NUMERIC(10,2) DEFAULT 0 CHECK (balance >= 0),
-		total_withdrawn NUMERIC(10,2) DEFAULT 0 CHECK (total_withdrawn >= 0),
+		balance INT DEFAULT 0 CHECK (balance >= 0),
+		total_withdrawn INT DEFAULT 0 CHECK (total_withdrawn >= 0),
 		created_at TIMESTAMP DEFAULT NOW()
 	);
 
@@ -23,7 +23,7 @@ const (
 		order_number TEXT NOT NULL,
 		created_at TIMESTAMP DEFAULT NOW(),
 		status TEXT NOT NULL,
-		bonus_amount NUMERIC(10,2),
+		bonus_amount INT,
 		UNIQUE(user_id, order_number)
 	);
 
@@ -31,7 +31,7 @@ const (
 		id SERIAL PRIMARY KEY,
 		user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 		order_number TEXT NOT NULL,
-		amount NUMERIC(10,2),
+		amount INT,
 		created_at TIMESTAMP DEFAULT NOW(),
 		status BOOLEAN NOT NULL DEFAULT TRUE
 	);
@@ -57,4 +57,13 @@ const (
 						FROM orders 
 						WHERE user_id = $1 
 						ORDER BY created_at DESC;`
+
+	GetWalletByUID = `SELECT balance, total_withdrawn from wallets WHERE user_id = $1;`
+
+	CreateUserWalletQuery = `INSERT INTO wallets (user_id, balance, total_withdrawn, created_at) VALUES ($1, $2, $3, $4);`
 )
+
+//user_id INT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+//balance NUMERIC(10,2) DEFAULT 0 CHECK (balance >= 0),
+//total_withdrawn NUMERIC(10,2) DEFAULT 0 CHECK (total_withdrawn >= 0),
+//created_at TIMESTAMP DEFAULT NOW()

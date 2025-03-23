@@ -49,6 +49,12 @@ func (p *PsqlStorage) Register(ctx context.Context, newUser storage.MartUser) (t
 	if err != nil {
 		return "", err
 	}
+
+	err = p.conn.CreateUserWallet(ctx, newUser.Login)
+	if err != nil {
+		return "", err
+	}
+
 	token, err = p.GetJWT(ctx, newUser.Login)
 	if err != nil {
 		return "", err
@@ -112,6 +118,15 @@ func (p *PsqlStorage) GetOrdersByUID(ctx context.Context, UID int) (orders []sto
 	}
 	logger.Log.Info("GOT ORDERS", zap.Any("orders", orders))
 	return orders, nil
+}
+
+func (p *PsqlStorage) GetUserBalance(ctx context.Context, UID int) (wallet storage.MartUserWallet, err error) {
+	wallet, err = p.conn.GetUserWallet(ctx, UID)
+	if err != nil {
+		return storage.MartUserWallet{}, err
+	}
+	return wallet, nil
+
 }
 
 func (p *PsqlStorage) GetKey() []byte {

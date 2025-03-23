@@ -29,11 +29,11 @@ type MartUser struct {
 }
 
 type MartUserWallet struct {
-	ID            int       `json:"id"`
-	OwnerID       int       `json:"user_id"`
-	Balance       int       `json:"balance"`
-	TotalWithdraw int       `json:"total_withdraw"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID            int       `json:"-"`
+	OwnerID       int       `json:"-"`
+	Balance       int       `json:"current"`
+	TotalWithdraw int       `json:"withdrawn"`
+	CreatedAt     time.Time `json:"-"`
 }
 
 type MartOrder struct {
@@ -69,6 +69,8 @@ type DBReader interface {
 	ValidateUserCredentials(ctx context.Context, user MartUser) error
 	GetUIDByUsername(ctx context.Context, username string) (int, error)
 	GetUserOrders(ctx context.Context, UID int) ([]MartOrder, error)
+	GetUserWallet(ctx context.Context, UID int) (wallet MartUserWallet, err error)
+	CreateUserWallet(ctx context.Context, login string) error
 
 	/*
 		1. Получить пароль по логину
@@ -105,6 +107,7 @@ type Storage interface {
 	RegisterOrder(ctx context.Context, orderNumber string, UID int) error
 	GetUID(ctx context.Context, login string) (int, error)
 	GetOrdersByUID(ctx context.Context, UID int) (orders []MartOrder, err error)
+	GetUserBalance(ctx context.Context, UID int) (wallet MartUserWallet, err error)
 
 	/*
 		1. Зарегистрировать пользователя
