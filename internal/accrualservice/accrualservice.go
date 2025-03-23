@@ -132,7 +132,7 @@ func (b *BonusAPIService) Get(order storage.MartOrder) (storage.MartOrder, error
 	resp, err = client.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(body).
-		Post(remoteURL)
+		Get(remoteURL)
 	if err != nil {
 		return storage.MartOrder{}, err
 	}
