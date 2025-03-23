@@ -287,8 +287,37 @@ func (h Handlers) GetWithdrawalsHandler(rw http.ResponseWriter, r *http.Request)
 	logger.Log.Debug("GetWithdrawalsHandler called")
 	rw.Header().Set("Content-Type", "application/json")
 
-	rw.WriteHeader(http.StatusNotImplemented)
-	resp, _ := json.MarshalIndent(http.StatusText(http.StatusNotImplemented), "", "    ")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	UID, err := h.getUserID(ctx, r)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		return
+	}
+	withdrawals, err := h.st.GetWithdrawals(ctx, UID)
+	if err != nil {
+		if errors.Is(err, storage.ErrNoData) {
+			rw.WriteHeader(http.StatusNoContent)
+			resp, _ := json.MarshalIndent(http.StatusText(http.StatusNoContent), "", "    ")
+			rw.Write(resp)
+			return
+		}
+		rw.WriteHeader(http.StatusInternalServerError)
+		resp, _ := json.MarshalIndent(http.StatusText(http.StatusInternalServerError), "", "    ")
+		rw.Write(resp)
+		return
+	}
+
+	resp, err := json.MarshalIndent(withdrawals, "", "    ")
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
 	rw.Write(resp)
 }
 

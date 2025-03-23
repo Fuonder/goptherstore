@@ -53,13 +53,14 @@ type Withdrawal struct {
 	OrderID   string    `json:"order"`
 	Amount    float32   `json:"sum"`
 	Status    string    `json:"-"`
-	CreatedAt time.Time `json:"-"`
+	CreatedAt time.Time `json:"processed_at,omitempty"`
 }
 
 type DBWriter interface {
 	CreateUser(ctx context.Context, newUser MartUser) error
 	WriteNewOrder(ctx context.Context, order MartOrder) error
 	ProcessWithdraw(ctx context.Context, withdraw Withdrawal) error
+	GetUserWithdrawals(ctx context.Context, UID int) (withdrawals []Withdrawal, err error)
 	/*
 		1. Записать пользователя
 		2. Записать заказ (начисление)
@@ -112,6 +113,7 @@ type Storage interface {
 	GetOrdersByUID(ctx context.Context, UID int) (orders []MartOrder, err error)
 	GetUserBalance(ctx context.Context, UID int) (wallet MartUserWallet, err error)
 	RegisterWithdraw(ctx context.Context, withdraw Withdrawal) error
+	GetWithdrawals(ctx context.Context, UID int) (withdrawals []Withdrawal, err error)
 
 	/*
 		1. Зарегистрировать пользователя

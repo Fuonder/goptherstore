@@ -129,6 +129,14 @@ func (p *PsqlStorage) GetUserBalance(ctx context.Context, UID int) (wallet stora
 
 }
 
+func (p *PsqlStorage) GetWithdrawals(ctx context.Context, UID int) (withdrawals []storage.Withdrawal, err error) {
+	withdrawals, err = p.conn.GetUserWithdrawals(ctx, UID)
+	if err != nil {
+		return nil, err
+	}
+	return withdrawals, nil
+}
+
 func (p *PsqlStorage) GetKey() []byte {
 	return p.secret
 }

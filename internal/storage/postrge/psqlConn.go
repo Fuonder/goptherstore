@@ -301,6 +301,46 @@ func (c *Connection) ProcessWithdraw(ctx context.Context, withdraw storage.Withd
 	return nil
 }
 
+func (c *Connection) GetUserWithdrawals(ctx context.Context, UID int) (withdrawals []storage.Withdrawal, err error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	rows, err := c.db.QueryContext(ctx, GetWithdrawalsByUID, UID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query orders: %v", err)
+	}
+	defer rows.Close()
+	withdrawals = make([]storage.Withdrawal, 0)
+
+	for rows.Next() {
+		var withdrawal storage.Withdrawal
+		var amount sql.NullFloat64
+		//var createdAt time.Time
+
+		if err := rows.Scan(&withdrawal.OrderID, &amount, &withdrawal.CreatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %v", err)
+		}
+
+		//order.CreatedAt = createdAt.Format("2006-01-02T15:04:05-07:00")
+
+		if amount.Valid && amount.Float64 > 0 {
+			accrual := float32(amount.Float64)
+			withdrawal.Amount = accrual
+		}
+
+		withdrawals = append(withdrawals, withdrawal)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error during row iteration: %v", err)
+	}
+
+	logger.Log.Info("RESULT", zap.Any("withdrawals", withdrawals))
+	if len(withdrawals) == 0 {
+		return nil, storage.ErrNoData
+	}
+	return withdrawals, nil
+}
+
 func (c *Connection) GetUIDByUsername(ctx context.Context, username string) (int, error) {
 
 	c.mu.RLock()

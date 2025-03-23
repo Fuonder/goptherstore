@@ -65,7 +65,16 @@ const (
 	GetBalanceByUID       = `SELECT balance FROM wallets where user_id = $1;`
 	InsertWithdraw        = `INSERT INTO withdrawals (user_id, order_number, amount, created_at) VALUES ($1, $2, $3, $4);`
 	UpdateBalance         = `UPDATE wallets SET balance = balance - $1, total_withdrawn = total_withdrawn + $1 WHERE user_id = $2;`
+	GetWithdrawalsByUID   = `
+						SELECT order_number, amount, created_at 
+						FROM withdrawals 
+						WHERE user_id = $1 
+						ORDER BY created_at DESC;`
 )
+
+//order_number TEXT NOT NULL,
+//amount REAL,
+//created_at TIMESTAMP DEFAULT NOW(),
 
 //user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 //order_number TEXT NOT NULL,

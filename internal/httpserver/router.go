@@ -42,7 +42,7 @@ func (r *RouterObject) GetRouter() (chi.Router, error) {
 		})
 		router.Route("/withdrawals", func(router chi.Router) {
 			router.Use(r.h.AuthMiddleware)
-			router.Post("/", logger.HanlderWithLogger(r.h.GetWithdrawalsHandler))
+			router.Get("/", logger.HanlderWithLogger(r.h.GetWithdrawalsHandler))
 		})
 	})
 	logger.Log.Info("Successfully initialized Router")
