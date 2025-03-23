@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/Fuonder/goptherstore.git/internal/accrualservice"
 	"github.com/Fuonder/goptherstore.git/internal/httpserver"
 	"github.com/Fuonder/goptherstore.git/internal/logger"
+	st "github.com/Fuonder/goptherstore.git/internal/storage"
 	"github.com/Fuonder/goptherstore.git/internal/storage/postrge"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 	"log"
-	"time"
 )
 
 func main() {
@@ -29,7 +31,8 @@ func main() {
 }
 
 func run() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	DBConn, err := postrge.NewConnection(ctx, CliOptions.DatabaseDSN)
@@ -37,11 +40,39 @@ func run() error {
 		return err
 	}
 
-	storage := postrge.NewPsqlStorage(ctx, DBConn, []byte(CliOptions.Key))
+	g := new(errgroup.Group)
+	jobsCh := make(chan st.MartOrder, 10)
+	defer close(jobsCh)
+
+	storage := postrge.NewPsqlStorage(ctx, DBConn, []byte(CliOptions.Key), jobsCh)
 
 	service, err := httpserver.NewService(CliOptions.APIAddress.String(), storage)
 	if err != nil {
 		return err
 	}
-	return service.Run()
+
+	BonusAPIService := accrualservice.NewBonusAPIService(storage, jobsCh, CliOptions.AccrualAddress.String())
+
+	g.Go(func() error {
+		err = service.Run()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		err = BonusAPIService.Run()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		logger.Log.Debug("exit with error", zap.Error(err))
+		cancel()
+		return err
+	}
+	return nil
 }

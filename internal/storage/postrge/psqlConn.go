@@ -257,7 +257,7 @@ func (c *Connection) UpdateWallet(ctx context.Context, value float32, UID int) e
 	}
 	defer tx.Rollback()
 	_, err = tx.ExecContext(
-		ctx, UpdateBalance,
+		ctx, WithdrawUpdateBalance,
 		value,
 		UID,
 	)
@@ -438,6 +438,65 @@ func (c *Connection) CreateUserWallet(ctx context.Context, login string) error {
 	}
 	return tx.Commit()
 
+}
+
+func (c *Connection) GetOrderOwner(ctx context.Context, orderNumber string) (UID int, err error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	ownerID := 0
+	err = c.db.QueryRowContext(ctx, SearchOrderByNumberQuery, orderNumber).Scan(&ownerID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to check order_number presence: %w", err)
+	}
+	return ownerID, nil
+}
+
+func (c *Connection) Accrual(ctx context.Context, value float32, UID int) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	tx, err := c.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(
+		ctx, AccrualUpdateBalance,
+		value,
+		UID,
+	)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (c *Connection) UpdateOrder(ctx context.Context, order storage.MartOrder) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	tx, err := c.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(
+		ctx,
+		UpdateOrder,
+		time.Now(),
+		order.Status,
+		order.OrderID,
+	)
+	if err != nil {
+		return err
+	}
+	if order.Bonus > 0 {
+		_, err = tx.ExecContext(
+			ctx,
+			UpdateOrderBonus,
+			order.Bonus,
+			order.OrderID,
+		)
+	}
+	return tx.Commit()
 }
 
 func (c *Connection) Close() error {

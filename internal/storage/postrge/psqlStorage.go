@@ -2,7 +2,6 @@ package postrge
 
 import (
 	"context"
-	"fmt"
 	"github.com/Fuonder/goptherstore.git/internal/logger"
 	"github.com/Fuonder/goptherstore.git/internal/storage"
 	"github.com/dgrijalva/jwt-go"
@@ -13,11 +12,12 @@ import (
 type PsqlStorage struct {
 	conn   storage.DBConnection
 	secret []byte
+	jobs   chan storage.MartOrder
 	//rwMutex sync.RWMutex NOTE: moved to connection
 }
 
-func NewPsqlStorage(ctx context.Context, conn storage.DBConnection, key []byte) *PsqlStorage {
-	return &PsqlStorage{conn: conn, secret: key}
+func NewPsqlStorage(ctx context.Context, conn storage.DBConnection, key []byte, jobsCh chan storage.MartOrder) *PsqlStorage {
+	return &PsqlStorage{conn: conn, secret: key, jobs: jobsCh}
 }
 
 func (p *PsqlStorage) CheckConnection() error {
@@ -101,10 +101,16 @@ func (p *PsqlStorage) RegisterOrder(ctx context.Context, orderNumber string, UID
 		UserID:    UID,
 		OrderID:   orderNumber,
 		CreatedAt: time.Now(),
-		Status:    "NEW",
+		Status:    storage.OrderStatus[0],
 		Bonus:     0,
 	}
 	err := p.conn.WriteNewOrder(ctx, order)
+	if err != nil {
+		return err
+	}
+	p.jobs <- order
+	order.Status = storage.OrderStatus[1]
+	err = p.conn.UpdateOrder(ctx, order)
 	if err != nil {
 		return err
 	}
@@ -153,6 +159,22 @@ func (p *PsqlStorage) RegisterWithdraw(ctx context.Context, withdraw storage.Wit
 	return p.conn.ProcessWithdraw(ctx, withdraw)
 }
 
-func (p *PsqlStorage) RunWorkers() error {
-	return fmt.Errorf("method <RunWorkers>: not implemented")
+func (p *PsqlStorage) UpdateOrder(ctx context.Context, order storage.MartOrder) error {
+	err := p.conn.UpdateOrder(ctx, order)
+	if err != nil {
+		return err
+	}
+	//1. update order
+
+	//2. Get user_id from order SearchOrderByNumberQuery
+	UID, err := p.conn.GetOrderOwner(ctx, order.OrderID)
+	if err != nil {
+		return err
+	}
+	//3. change wallet balance AccrualUpdateBalance
+	err = p.conn.Accrual(ctx, order.Bonus, UID)
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -64,13 +64,23 @@ const (
 	CreateUserWalletQuery = `INSERT INTO wallets (user_id, balance, total_withdrawn, created_at) VALUES ($1, $2, $3, $4);`
 	GetBalanceByUID       = `SELECT balance FROM wallets where user_id = $1;`
 	InsertWithdraw        = `INSERT INTO withdrawals (user_id, order_number, amount, created_at) VALUES ($1, $2, $3, $4);`
-	UpdateBalance         = `UPDATE wallets SET balance = balance - $1, total_withdrawn = total_withdrawn + $1 WHERE user_id = $2;`
+	WithdrawUpdateBalance = `UPDATE wallets SET balance = balance - $1, total_withdrawn = total_withdrawn + $1 WHERE user_id = $2;`
 	GetWithdrawalsByUID   = `
 						SELECT order_number, amount, created_at 
 						FROM withdrawals 
 						WHERE user_id = $1 
 						ORDER BY created_at DESC;`
+	AccrualUpdateBalance = `UPDATE wallets SET balance = balance + $1 WHERE user_id = $2;`
+	UpdateOrder          = `UPDATE orders SET created_at = $1, status = $2 WHERE order_number = $3;`
+	UpdateOrderBonus     = `UPDATE orders SET bonus_amount = $1 WHERE order_number = $2`
 )
+
+/*
+user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+order_number TEXT NOT NULL,
+created_at TIMESTAMP DEFAULT NOW(),
+status TEXT NOT NULL,
+bonus_amount REAL,*/
 
 //order_number TEXT NOT NULL,
 //amount REAL,
