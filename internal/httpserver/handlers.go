@@ -241,10 +241,47 @@ func (h Handlers) PostWithdrawHandler(rw http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "application/json" {
 		rw.WriteHeader(http.StatusBadRequest)
 		rw.Write([]byte(http.StatusText(http.StatusBadRequest)))
+		return
+	}
+	var withdraw storage.Withdrawal
+
+	err := json.NewDecoder(r.Body).Decode(&withdraw)
+	if err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		rw.Write([]byte(http.StatusText(http.StatusBadRequest)))
+		return
 	}
 
-	rw.WriteHeader(http.StatusNotImplemented)
-	rw.Write([]byte("Not Implemented"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	UID, err := h.getUserID(ctx, r)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		return
+	}
+	withdraw.UserID = UID
+	withdraw.CreatedAt = time.Now()
+
+	err = h.st.RegisterWithdraw(ctx, withdraw)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotEnoughBonuses) {
+			rw.WriteHeader(402)
+			rw.Write([]byte(err.Error()))
+			return
+		} else if errors.Is(err, storage.ErrInvalidOrderNumber) {
+			rw.WriteHeader(http.StatusUnprocessableEntity)
+			rw.Write([]byte(http.StatusText(http.StatusUnprocessableEntity)))
+			return
+		}
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte(http.StatusText(http.StatusOK)))
 }
 func (h Handlers) GetWithdrawalsHandler(rw http.ResponseWriter, r *http.Request) {
 	logger.Log.Debug("GetWithdrawalsHandler called")

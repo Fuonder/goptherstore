@@ -212,6 +212,95 @@ func (c *Connection) isOrderExists(ctx context.Context, orderNumber string, UID 
 	return nil
 }
 
+func (c *Connection) isUserOrderPresent(ctx context.Context, orderNumber string, UID int) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	var count int
+	err := c.db.QueryRowContext(ctx, IsOrderPresentQuery, orderNumber, UID).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to check order presence: %w", err)
+	}
+	if count == 1 {
+		return nil
+	}
+	return storage.ErrInvalidOrderNumber
+}
+
+func (c *Connection) WriteWithdraw(ctx context.Context, withdraw storage.Withdrawal) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	tx, err := c.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(
+		ctx, InsertWithdraw,
+		withdraw.UserID,
+		withdraw.OrderID,
+		withdraw.Amount,
+		withdraw.CreatedAt,
+	)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (c *Connection) UpdateWallet(ctx context.Context, value float32, UID int) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	tx, err := c.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(
+		ctx, UpdateBalance,
+		value,
+		UID,
+	)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (c *Connection) GetUserBalance(ctx context.Context, UID int) (float32, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	var balance float32
+	err := c.db.QueryRowContext(ctx, GetBalanceByUID, UID).Scan(&balance)
+	if err != nil {
+		return 0, err
+	}
+	return balance, nil
+}
+
+func (c *Connection) ProcessWithdraw(ctx context.Context, withdraw storage.Withdrawal) error {
+	err := c.isUserOrderPresent(ctx, withdraw.OrderID, withdraw.UserID)
+	if err != nil {
+		return err
+	}
+	balance, err := c.GetUserBalance(ctx, withdraw.UserID)
+	if err != nil {
+		return err
+	}
+	if balance < withdraw.Amount {
+		return storage.ErrNotEnoughBonuses
+	}
+	err = c.WriteWithdraw(ctx, withdraw)
+	if err != nil {
+		return err
+	}
+	err = c.UpdateWallet(ctx, withdraw.Amount, withdraw.UserID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *Connection) GetUIDByUsername(ctx context.Context, username string) (int, error) {
 
 	c.mu.RLock()

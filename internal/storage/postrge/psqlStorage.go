@@ -141,6 +141,10 @@ func (p *PsqlStorage) GetUID(ctx context.Context, login string) (int, error) {
 	return UID, nil
 }
 
+func (p *PsqlStorage) RegisterWithdraw(ctx context.Context, withdraw storage.Withdrawal) error {
+	return p.conn.ProcessWithdraw(ctx, withdraw)
+}
+
 func (p *PsqlStorage) RunWorkers() error {
 	return fmt.Errorf("method <RunWorkers>: not implemented")
 }

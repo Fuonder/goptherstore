@@ -47,6 +47,7 @@ const (
 						`
 	GetUserPasswordQuery     = `SELECT password_hash FROM users WHERE login = $1;`
 	SearchOrderByNumberQuery = `SELECT user_id from orders WHERE order_number = $1;`
+	IsOrderPresentQuery      = `SELECT COUNT(*) from orders WHERE order_number = $1 and user_id = $2;`
 	GetUIDByUserLoginQuery   = `SELECT id FROM users WHERE login = $1;`
 	InsertNewOrderQuery      = `
 							INSERT INTO orders (user_id, order_number, created_at, status, bonus_amount) 
@@ -61,7 +62,15 @@ const (
 	GetWalletByUID = `SELECT balance, total_withdrawn from wallets WHERE user_id = $1;`
 
 	CreateUserWalletQuery = `INSERT INTO wallets (user_id, balance, total_withdrawn, created_at) VALUES ($1, $2, $3, $4);`
+	GetBalanceByUID       = `SELECT balance FROM wallets where user_id = $1;`
+	InsertWithdraw        = `INSERT INTO withdrawals (user_id, order_number, amount, created_at) VALUES ($1, $2, $3, $4);`
+	UpdateBalance         = `UPDATE wallets SET balance = balance - $1, total_withdrawn = total_withdrawn + $1 WHERE user_id = $2;`
 )
+
+//user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+//order_number TEXT NOT NULL,
+//amount REAL,
+//created_at TIMESTAMP DEFAULT NOW(),
 
 //user_id INT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 //balance NUMERIC(10,2) DEFAULT 0 CHECK (balance >= 0),

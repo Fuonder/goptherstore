@@ -14,6 +14,8 @@ var (
 	ErrOrderAlreadyExists = errors.New("order already exists")
 	ErrOrderOfOtherUser   = errors.New("order already registered by other user")
 	ErrNoData             = errors.New("no data")
+	ErrNotEnoughBonuses   = errors.New("not enough bonuses")
+	ErrInvalidOrderNumber = errors.New("invalid order number")
 )
 
 type Claims struct {
@@ -46,17 +48,18 @@ type MartOrder struct {
 }
 
 type Withdrawal struct {
-	ID        int       `json:"id"`
-	UserID    int       `json:"user_id"`
-	OrderID   int       `json:"order_id"`
-	Amount    float32   `json:"amount"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        int       `json:"-"`
+	UserID    int       `json:"-"`
+	OrderID   string    `json:"order"`
+	Amount    float32   `json:"sum"`
+	Status    string    `json:"-"`
+	CreatedAt time.Time `json:"-"`
 }
 
 type DBWriter interface {
 	CreateUser(ctx context.Context, newUser MartUser) error
 	WriteNewOrder(ctx context.Context, order MartOrder) error
+	ProcessWithdraw(ctx context.Context, withdraw Withdrawal) error
 	/*
 		1. Записать пользователя
 		2. Записать заказ (начисление)
@@ -108,6 +111,7 @@ type Storage interface {
 	GetUID(ctx context.Context, login string) (int, error)
 	GetOrdersByUID(ctx context.Context, UID int) (orders []MartOrder, err error)
 	GetUserBalance(ctx context.Context, UID int) (wallet MartUserWallet, err error)
+	RegisterWithdraw(ctx context.Context, withdraw Withdrawal) error
 
 	/*
 		1. Зарегистрировать пользователя
