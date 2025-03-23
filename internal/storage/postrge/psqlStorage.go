@@ -89,8 +89,31 @@ func (p *PsqlStorage) Login(ctx context.Context, user storage.MartUser) (token s
 	return token, nil
 }
 
+func (p *PsqlStorage) RegisterOrder(ctx context.Context, orderNumber string, UID int) error {
+	order := storage.MartOrder{
+		UserID:    UID,
+		OrderID:   orderNumber,
+		CreatedAt: time.Now(),
+		Status:    "REGISTERED",
+		Bonus:     0,
+	}
+	err := p.conn.WriteNewOrder(ctx, order)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (p *PsqlStorage) GetKey() []byte {
 	return p.secret
+}
+
+func (p *PsqlStorage) GetUID(ctx context.Context, login string) (int, error) {
+	UID, err := p.conn.GetUIDByUsername(ctx, login)
+	if err != nil {
+		return 0, err
+	}
+	return UID, nil
 }
 
 func (p *PsqlStorage) RunWorkers() error {

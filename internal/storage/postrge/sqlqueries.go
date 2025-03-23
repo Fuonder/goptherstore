@@ -23,7 +23,7 @@ const (
 		order_number TEXT NOT NULL,
 		created_at TIMESTAMP DEFAULT NOW(),
 		status TEXT NOT NULL,
-		bonus_amount NUMERIC(10,2) CHECK (bonus_amount >= 0),
+		bonus_amount NUMERIC(10,2),
 		UNIQUE(user_id, order_number)
 	);
 
@@ -31,7 +31,7 @@ const (
 		id SERIAL PRIMARY KEY,
 		user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 		order_number TEXT NOT NULL,
-		amount NUMERIC(10,2) NOT NULL CHECK (amount >= 0),
+		amount NUMERIC(10,2),
 		created_at TIMESTAMP DEFAULT NOW(),
 		status BOOLEAN NOT NULL DEFAULT TRUE
 	);
@@ -45,5 +45,10 @@ const (
 						INSERT INTO users (login, password_hash, created_at) 
 						VALUES ($1, $2, $3);
 						`
-	GetUserPasswordQuery = `SELECT password_hash FROM users WHERE login = $1;`
+	GetUserPasswordQuery     = `SELECT password_hash FROM users WHERE login = $1;`
+	SearchOrderByNumberQuery = `SELECT COUNT(*) from orders WHERE order_number = $1;`
+	GetUIDByUserLoginQuery   = `SELECT id FROM users WHERE login = $1;`
+	InsertNewOrderQuery      = `
+							INSERT INTO orders (user_id, order_number, created_at, status, bonus_amount) 
+							VALUES ($1, $2, $3, $4, $5);`
 )

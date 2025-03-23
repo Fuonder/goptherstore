@@ -11,6 +11,7 @@ var (
 	ErrUserAlreadyExists  = errors.New("user already exists")
 	ErrUserCreationFailed = errors.New("user creation failed")
 	ErrWrongCredentials   = errors.New("wrong credentials")
+	ErrOrderAlreadyExists = errors.New("order already exists")
 )
 
 type Claims struct {
@@ -36,7 +37,7 @@ type MartUserWallet struct {
 type MartOrder struct {
 	ID        int       `json:"id"`
 	UserID    int       `json:"user_id"`
-	OrderID   int       `json:"order_id"`
+	OrderID   string    `json:"order_id"`
 	Status    string    `json:"status"`
 	Bonus     int       `json:"bonus,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
@@ -53,6 +54,7 @@ type Withdrawal struct {
 
 type DBWriter interface {
 	CreateUser(ctx context.Context, newUser MartUser) error
+	WriteNewOrder(ctx context.Context, order MartOrder) error
 	/*
 		1. Записать пользователя
 		2. Записать заказ (начисление)
@@ -63,6 +65,7 @@ type DBWriter interface {
 type DBReader interface {
 	CheckLoginPresence(ctx context.Context, user MartUser) error
 	ValidateUserCredentials(ctx context.Context, user MartUser) error
+	GetUIDByUsername(ctx context.Context, username string) (int, error)
 
 	/*
 		1. Получить пароль по логину
@@ -96,6 +99,8 @@ type AccrualService interface {
 type Storage interface {
 	AuthService
 	AccrualService
+	RegisterOrder(ctx context.Context, orderNumber string, UID int) error
+	GetUID(ctx context.Context, login string) (int, error)
 
 	/*
 		1. Зарегистрировать пользователя

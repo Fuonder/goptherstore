@@ -159,25 +159,65 @@ func (c *Connection) ValidateUserCredentials(ctx context.Context, user storage.M
 	return nil
 }
 
-//func (c *Connection) Register(ctx context.Context, newUser storage.MartUser) (token string, err error) {
-//	err = c.CheckLoginPresence(ctx, newUser)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	err = c.CreateUser(ctx, newUser)
-//	if err != nil {
-//		return "", err
-//	}
-//	token, err = c.GetJWT(ctx, newUser)
-//	if err != nil {
-//		return "", err
-//	}
-//	return token, nil
-//}
-//
-//func (c *Connection) Login(ctx context.Context, user storage.MartUser) (string, error) {
-//}
+func (c *Connection) WriteNewOrder(ctx context.Context, order storage.MartOrder) error {
+	err := c.isOrderExists(ctx, order.OrderID)
+	if err != nil {
+		return err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	tx, err := c.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(
+		ctx, InsertNewOrderQuery,
+		order.UserID,
+		order.OrderID,
+		order.CreatedAt,
+		order.Status,
+		order.Bonus,
+	)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+
+	// here write to accrual workers jobs channel.
+
+}
+
+func (c *Connection) isOrderExists(ctx context.Context, orderNumber string) error {
+	// true - exists (negative case), false - not exists (positive case)
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	var count int
+	err := c.db.QueryRowContext(ctx, SearchOrderByNumberQuery, orderNumber).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to check order_number presence: %w", err)
+	}
+	if count > 0 {
+		return storage.ErrOrderAlreadyExists
+	}
+	return nil
+}
+
+func (c *Connection) GetUIDByUsername(ctx context.Context, username string) (int, error) {
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	var UID int
+	err := c.db.QueryRowContext(ctx, GetUIDByUserLoginQuery, username).Scan(&UID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, fmt.Errorf("user not found")
+		}
+		return 0, err
+	}
+	return UID, nil
+}
 
 func (c *Connection) Close() error {
 	return c.db.Close()

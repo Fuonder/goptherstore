@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"time"
+	"unicode"
 )
 
 type Handlers struct {
@@ -115,11 +116,49 @@ func (h Handlers) PostOrdersHandler(rw http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "text/plain" {
 		rw.WriteHeader(http.StatusBadRequest)
 		rw.Write([]byte(http.StatusText(http.StatusBadRequest)))
+		return
 	}
 
-	rw.WriteHeader(http.StatusNotImplemented)
-	rw.Write([]byte("Not Implemented"))
+	var orderNumberBytes []byte
+	amount, err := r.Body.Read(orderNumberBytes)
+	if err != nil || amount == 0 {
+		rw.WriteHeader(http.StatusUnprocessableEntity)
+		rw.Write([]byte(http.StatusText(http.StatusUnprocessableEntity)))
+		return
+	}
+
+	if ok := isValidLuhn(string(orderNumberBytes)); !ok {
+		rw.WriteHeader(http.StatusUnprocessableEntity)
+		rw.Write([]byte(http.StatusText(http.StatusUnprocessableEntity)))
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	UID, err := h.getUserID(ctx, r)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		return
+	}
+
+	err = h.st.RegisterOrder(ctx, string(orderNumberBytes), UID)
+	if err != nil {
+		if errors.Is(err, storage.ErrOrderAlreadyExists) {
+			rw.WriteHeader(http.StatusConflict)
+			rw.Write([]byte(http.StatusText(http.StatusConflict)))
+			return
+		}
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		return
+	}
+
+	rw.WriteHeader(http.StatusAccepted)
+	rw.Write([]byte(http.StatusText(http.StatusAccepted)))
 }
+
 func (h Handlers) GetOrdersHandler(rw http.ResponseWriter, r *http.Request) {
 	logger.Log.Debug("GetOrdersHandler called")
 	rw.Header().Set("Content-Type", "application/json")
@@ -183,4 +222,63 @@ func (h Handlers) AuthMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(rw, r)
 	})
+}
+
+func (h Handlers) getUserID(ctx context.Context, r *http.Request) (int, error) {
+	cookie, err := r.Cookie("auth_token")
+	if err != nil {
+		if err == http.ErrNoCookie {
+			// If the cookie is not found, return an error
+			return 0, fmt.Errorf("cookie not found")
+		}
+		return 0, fmt.Errorf("error retrieving cookie: %v", err)
+	}
+	tokenString := cookie.Value
+	token, err := jwt.ParseWithClaims(tokenString, &storage.Claims{}, func(token *jwt.Token) (interface{}, error) {
+		// Ensure the token uses the correct signing method
+		if token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
+			return nil, fmt.Errorf("unexpected signing method %v", token.Method.Alg())
+		}
+		return h.st.GetKey(), nil
+	})
+	if err != nil || !token.Valid {
+		return 0, fmt.Errorf("invalid token: %v", err)
+	}
+	claims, ok := token.Claims.(*storage.Claims)
+	if !ok || !token.Valid {
+		return 0, fmt.Errorf("invalid token")
+	}
+
+	UID, err := h.st.GetUID(ctx, claims.Username)
+	if err != nil {
+		return 0, fmt.Errorf("error retrieving user ID: %v", err)
+	}
+	return UID, nil
+}
+
+func isValidLuhn(number string) bool {
+	var sum int
+	double := false
+
+	for i := len(number) - 1; i >= 0; i-- {
+		r := rune(number[i])
+
+		if !unicode.IsDigit(r) {
+			return false
+		}
+
+		digit := int(r - '0')
+
+		if double {
+			digit *= 2
+			if digit > 9 {
+				digit -= 9
+			}
+		}
+
+		sum += digit
+		double = !double
+	}
+
+	return sum%10 == 0
 }
