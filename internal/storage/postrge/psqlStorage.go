@@ -94,7 +94,7 @@ func (p *PsqlStorage) RegisterOrder(ctx context.Context, orderNumber string, UID
 		UserID:    UID,
 		OrderID:   orderNumber,
 		CreatedAt: time.Now(),
-		Status:    "REGISTERED",
+		Status:    "NEW",
 		Bonus:     0,
 	}
 	err := p.conn.WriteNewOrder(ctx, order)
