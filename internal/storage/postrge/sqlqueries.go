@@ -46,7 +46,7 @@ const (
 						VALUES ($1, $2, $3);
 						`
 	GetUserPasswordQuery     = `SELECT password_hash FROM users WHERE login = $1;`
-	SearchOrderByNumberQuery = `SELECT COUNT(*) from orders WHERE order_number = $1;`
+	SearchOrderByNumberQuery = `SELECT user_id from orders WHERE order_number = $1;`
 	GetUIDByUserLoginQuery   = `SELECT id FROM users WHERE login = $1;`
 	InsertNewOrderQuery      = `
 							INSERT INTO orders (user_id, order_number, created_at, status, bonus_amount) 

@@ -160,7 +160,7 @@ func (c *Connection) ValidateUserCredentials(ctx context.Context, user storage.M
 }
 
 func (c *Connection) WriteNewOrder(ctx context.Context, order storage.MartOrder) error {
-	err := c.isOrderExists(ctx, order.OrderID)
+	err := c.isOrderExists(ctx, order.OrderID, order.UserID)
 	if err != nil {
 		return err
 	}
@@ -189,16 +189,19 @@ func (c *Connection) WriteNewOrder(ctx context.Context, order storage.MartOrder)
 
 }
 
-func (c *Connection) isOrderExists(ctx context.Context, orderNumber string) error {
+func (c *Connection) isOrderExists(ctx context.Context, orderNumber string, UID int) error {
 	// true - exists (negative case), false - not exists (positive case)
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	var count int
-	err := c.db.QueryRowContext(ctx, SearchOrderByNumberQuery, orderNumber).Scan(&count)
+	ownerID := 0
+	err := c.db.QueryRowContext(ctx, SearchOrderByNumberQuery, orderNumber).Scan(&ownerID)
 	if err != nil {
 		return fmt.Errorf("failed to check order_number presence: %w", err)
 	}
-	if count > 0 {
+	if ownerID == UID {
+		return storage.ErrOrderOfOtherUser
+	}
+	if ownerID != 0 {
 		return storage.ErrOrderAlreadyExists
 	}
 	return nil

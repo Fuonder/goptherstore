@@ -12,6 +12,7 @@ var (
 	ErrUserCreationFailed = errors.New("user creation failed")
 	ErrWrongCredentials   = errors.New("wrong credentials")
 	ErrOrderAlreadyExists = errors.New("order already exists")
+	ErrOrderOfOtherUser   = errors.New("order already registered by other user")
 )
 
 type Claims struct {
