@@ -97,13 +97,18 @@ func (b *BonusAPIService) GetAccrualStatus(order storage.MartOrder) error {
 				return err
 			}
 		}
+		logger.Log.Info("received response from accrual with no errors")
 		if responseOrder.Status == AccrualStatusProcessed || responseOrder.Status == AccrualStatusInvalid {
+			logger.Log.Info("Status of response is ok", zap.Any("response", responseOrder.Status))
+			logger.Log.Info("Updating database")
 			err = b.st.UpdateOrder(ctx, responseOrder)
 			if err != nil {
 				return err
 			}
+			logger.Log.Info("Updating database exit with no errors")
 			return nil
 		} else {
+			logger.Log.Info("Status of response BAD", zap.Any("response", responseOrder.Status))
 			i = 0
 		}
 		if i < len(timeouts) {
@@ -130,11 +135,14 @@ func (b *BonusAPIService) Get(order storage.MartOrder) (storage.MartOrder, error
 	}
 	if resp.StatusCode() == 200 {
 		logger.Log.Info("Accrual response - OK")
+		logger.Log.Info("Unmarshal next")
 		var respBody storage.MartOrder
 		err = json.Unmarshal(resp.Body(), &respBody)
+		logger.Log.Info("Accrual result", zap.Any("respBody", respBody))
 		if err != nil {
 			return storage.MartOrder{}, err
 		}
+		logger.Log.Info("No errors with Unmarshal")
 		return respBody, nil
 	} else if resp.StatusCode() == 204 {
 		return storage.MartOrder{}, ErrNotRegistered
