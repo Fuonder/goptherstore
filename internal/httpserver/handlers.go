@@ -9,6 +9,7 @@ import (
 	"github.com/Fuonder/goptherstore.git/internal/storage"
 	"github.com/dgrijalva/jwt-go"
 	"go.uber.org/zap"
+	"io"
 	"net/http"
 	"time"
 	"unicode"
@@ -119,9 +120,8 @@ func (h Handlers) PostOrdersHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var orderNumberBytes []byte
-	amount, err := r.Body.Read(orderNumberBytes)
-	if err != nil || amount == 0 {
+	orderNumberBytes, err := io.ReadAll(r.Body)
+	if err != nil {
 		rw.WriteHeader(http.StatusUnprocessableEntity)
 		rw.Write([]byte(http.StatusText(http.StatusUnprocessableEntity)))
 		return
