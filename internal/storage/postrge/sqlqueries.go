@@ -12,8 +12,8 @@ const (
 	CREATE TABLE IF NOT EXISTS wallets (
 		id SERIAL PRIMARY KEY,
 		user_id INT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		balance INT DEFAULT 0 CHECK (balance >= 0),
-		total_withdrawn INT DEFAULT 0 CHECK (total_withdrawn >= 0),
+		balance REAL DEFAULT 0 CHECK (balance >= 0),
+		total_withdrawn REAL DEFAULT 0 CHECK (total_withdrawn >= 0),
 		created_at TIMESTAMP DEFAULT NOW()
 	);
 
@@ -23,7 +23,7 @@ const (
 		order_number TEXT NOT NULL,
 		created_at TIMESTAMP DEFAULT NOW(),
 		status TEXT NOT NULL,
-		bonus_amount INT,
+		bonus_amount REAL,
 		UNIQUE(user_id, order_number)
 	);
 
@@ -31,7 +31,7 @@ const (
 		id SERIAL PRIMARY KEY,
 		user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 		order_number TEXT NOT NULL,
-		amount INT,
+		amount REAL,
 		created_at TIMESTAMP DEFAULT NOW(),
 		status BOOLEAN NOT NULL DEFAULT TRUE
 	);

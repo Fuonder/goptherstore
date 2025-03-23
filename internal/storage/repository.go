@@ -31,8 +31,8 @@ type MartUser struct {
 type MartUserWallet struct {
 	ID            int       `json:"-"`
 	OwnerID       int       `json:"-"`
-	Balance       int       `json:"current"`
-	TotalWithdraw int       `json:"withdrawn"`
+	Balance       float32   `json:"current"`
+	TotalWithdraw float32   `json:"withdrawn"`
 	CreatedAt     time.Time `json:"-"`
 }
 
@@ -41,7 +41,7 @@ type MartOrder struct {
 	UserID    int       `json:"-"`
 	OrderID   string    `json:"number"`
 	Status    string    `json:"status"`
-	Bonus     int       `json:"accrual,omitempty"`
+	Bonus     float32   `json:"accrual,omitempty"`
 	CreatedAt time.Time `json:"uploaded_at"`
 }
 
@@ -49,7 +49,7 @@ type Withdrawal struct {
 	ID        int       `json:"id"`
 	UserID    int       `json:"user_id"`
 	OrderID   int       `json:"order_id"`
-	Amount    int       `json:"amount"`
+	Amount    float32   `json:"amount"`
 	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 }

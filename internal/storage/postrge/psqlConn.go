@@ -249,7 +249,7 @@ func (c *Connection) GetUserOrders(ctx context.Context, UID int) ([]storage.Mart
 		//order.CreatedAt = createdAt.Format("2006-01-02T15:04:05-07:00")
 
 		if bonus.Valid && bonus.Float64 > 0 {
-			accrual := int(bonus.Float64)
+			accrual := float32(bonus.Float64)
 			order.Bonus = accrual
 		}
 
