@@ -6,6 +6,7 @@ import (
 	"github.com/Fuonder/goptherstore.git/internal/logger"
 	"github.com/Fuonder/goptherstore.git/internal/storage"
 	"github.com/dgrijalva/jwt-go"
+	"go.uber.org/zap"
 	"time"
 )
 
@@ -109,6 +110,7 @@ func (p *PsqlStorage) GetOrdersByUID(ctx context.Context, UID int) (orders []sto
 	if err != nil {
 		return nil, err
 	}
+	logger.Log.Info("GOT ORDERS", zap.Any("orders", orders))
 	return orders, nil
 }
 
