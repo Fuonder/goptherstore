@@ -279,10 +279,10 @@ func (c *Connection) GetUserBalance(ctx context.Context, UID int) (float32, erro
 }
 
 func (c *Connection) ProcessWithdraw(ctx context.Context, withdraw storage.Withdrawal) error {
-	err := c.isUserOrderPresent(ctx, withdraw.OrderID, withdraw.UserID)
-	if err != nil {
-		return err
-	}
+	//err := c.isUserOrderPresent(ctx, withdraw.OrderID, withdraw.UserID)
+	//if err != nil {
+	//	return err
+	//}
 	balance, err := c.GetUserBalance(ctx, withdraw.UserID)
 	if err != nil {
 		return err

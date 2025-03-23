@@ -252,6 +252,11 @@ func (h Handlers) PostWithdrawHandler(rw http.ResponseWriter, r *http.Request) {
 		rw.Write([]byte(http.StatusText(http.StatusBadRequest)))
 		return
 	}
+	if ok := isValidLuhn(withdraw.OrderID); !ok {
+		rw.WriteHeader(http.StatusUnprocessableEntity)
+		rw.Write([]byte(http.StatusText(http.StatusUnprocessableEntity)))
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
