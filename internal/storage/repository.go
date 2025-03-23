@@ -39,10 +39,10 @@ type MartUserWallet struct {
 type MartOrder struct {
 	ID        int       `json:"-"`
 	UserID    int       `json:"-"`
-	OrderID   string    `json:"order_id"`
+	OrderID   string    `json:"number"`
 	Status    string    `json:"status"`
-	Bonus     int       `json:"bonus,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
+	Bonus     int       `json:"accrual,omitempty"`
+	CreatedAt time.Time `json:"uploaded_at"`
 }
 
 type Withdrawal struct {
