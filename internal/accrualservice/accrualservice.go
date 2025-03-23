@@ -78,7 +78,7 @@ func (b *BonusAPIService) GetAccrualStatus(order storage.MartOrder) error {
 	for i := 0; i < retriesCount; i++ {
 		timeouts[i] = time.Duration(2*i+1) * time.Second
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	for i := 0; i < retriesCount; i++ {
@@ -124,15 +124,7 @@ func (b *BonusAPIService) Get(order storage.MartOrder) (storage.MartOrder, error
 
 	var resp *resty.Response
 
-	body, err := json.Marshal(order)
-	if err != nil {
-		return storage.MartOrder{}, err
-	}
-
-	resp, err = client.R().
-		SetHeader("Content-Type", "application/json").
-		SetBody(body).
-		Get(remoteURL)
+	resp, err = client.R().Get(remoteURL)
 	if err != nil {
 		return storage.MartOrder{}, err
 	}
