@@ -8,6 +8,7 @@ import (
 	"github.com/Fuonder/goptherstore.git/internal/logger"
 	"github.com/Fuonder/goptherstore.git/internal/models"
 	"github.com/Fuonder/goptherstore.git/internal/orders"
+	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"sync"

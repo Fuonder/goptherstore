@@ -7,7 +7,7 @@ import (
 	"github.com/Fuonder/goptherstore.git/internal/models"
 	"github.com/Fuonder/goptherstore.git/internal/users"
 	"github.com/Fuonder/goptherstore.git/internal/wallets"
-	_ "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"time"
 )
 
