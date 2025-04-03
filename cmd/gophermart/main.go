@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/Fuonder/goptherstore.git/internal/accrualservice"
+	"github.com/Fuonder/goptherstore.git/internal/connection/postrge"
+	"github.com/Fuonder/goptherstore.git/internal/dbservices"
 	"github.com/Fuonder/goptherstore.git/internal/httpserver"
 	"github.com/Fuonder/goptherstore.git/internal/logger"
-	st "github.com/Fuonder/goptherstore.git/internal/storage"
-	"github.com/Fuonder/goptherstore.git/internal/storage/postrge"
+	"github.com/Fuonder/goptherstore.git/internal/models"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"log"
@@ -41,17 +42,27 @@ func run() error {
 	}
 
 	g := new(errgroup.Group)
-	jobsCh := make(chan st.MartOrder, 10)
+	jobsCh := make(chan models.MartOrder, 10)
 	defer close(jobsCh)
 
-	storage := postrge.NewPsqlStorage(ctx, DBConn, []byte(CliOptions.Key), jobsCh)
-
-	service, err := httpserver.NewService(CliOptions.APIAddress.String(), storage)
+	instance, mu, err := DBConn.GetDBInstance(ctx)
 	if err != nil {
 		return err
 	}
 
-	BonusAPIService := accrualservice.NewBonusAPIService(storage, jobsCh, CliOptions.AccrualAddress.String())
+	DBServices, err := dbservices.NewDatabaseServices(jobsCh, []byte(CliOptions.Key), instance, mu)
+	if err != nil {
+		return err
+	}
+
+	//storage := postrge.NewPsqlStorage(ctx, DBConn, []byte(CliOptions.Key), jobsCh)
+
+	service, err := httpserver.NewService(CliOptions.APIAddress.String(), DBServices)
+	if err != nil {
+		return err
+	}
+
+	BonusAPIService := accrualservice.NewBonusAPIService(DBServices.OrderSrv, jobsCh, CliOptions.AccrualAddress.String())
 
 	g.Go(func() error {
 		err = service.Run()
@@ -76,3 +87,8 @@ func run() error {
 	}
 	return nil
 }
+
+//userSrv users.UserService
+//walletSrv wallets.WalletService
+//orderSrv orders.OrderService
+//authSrv  auth.AuthService

@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Fuonder/goptherstore.git/internal/logger"
-	"github.com/Fuonder/goptherstore.git/internal/storage"
-	"github.com/go-resty/resty/v2"
+	"github.com/Fuonder/goptherstore.git/internal/models"
+	"github.com/Fuonder/goptherstore.git/internal/orders"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"sync"
@@ -15,13 +15,13 @@ import (
 )
 
 type BonusAPIService struct {
-	st   storage.Storage
-	jobs chan storage.MartOrder
+	s    orders.OrderService
+	jobs chan models.MartOrder
 	addr string
 }
 
-func NewBonusAPIService(st storage.Storage, jobs chan storage.MartOrder, addr string) *BonusAPIService {
-	return &BonusAPIService{st, jobs, addr}
+func NewBonusAPIService(s orders.OrderService, jobs chan models.MartOrder, addr string) *BonusAPIService {
+	return &BonusAPIService{s, jobs, addr}
 }
 
 func (b *BonusAPIService) Run() error {
@@ -53,7 +53,7 @@ func (b *BonusAPIService) RunWorkers() error {
 	return nil
 }
 
-func (b *BonusAPIService) worker(idx int, jobs <-chan storage.MartOrder, wg *sync.WaitGroup) error {
+func (b *BonusAPIService) worker(idx int, jobs <-chan models.MartOrder, wg *sync.WaitGroup) error {
 	defer wg.Done()
 	for job := range jobs {
 		logger.Log.Info("processing job", zap.Int("worker", idx))
@@ -72,7 +72,7 @@ func (b *BonusAPIService) worker(idx int, jobs <-chan storage.MartOrder, wg *syn
 	return nil
 }
 
-func (b *BonusAPIService) GetAccrualStatus(order storage.MartOrder) error {
+func (b *BonusAPIService) GetAccrualStatus(order models.MartOrder) error {
 	retriesCount := 5
 	timeouts := make([]time.Duration, retriesCount)
 	for i := 0; i < retriesCount; i++ {
@@ -102,7 +102,7 @@ func (b *BonusAPIService) GetAccrualStatus(order storage.MartOrder) error {
 			logger.Log.Info("Status of response is ok", zap.Any("response", responseOrder.Status))
 			logger.Log.Info("Updating database")
 			responseOrder.OrderID = order.OrderID
-			err = b.st.UpdateOrder(ctx, responseOrder)
+			err = b.s.UpdateOrder(ctx, responseOrder)
 			if err != nil {
 				return err
 			}
@@ -123,7 +123,7 @@ func (b *BonusAPIService) GetAccrualStatus(order storage.MartOrder) error {
 	return ErrCanNotGetAccrualResponse
 }
 
-func (b *BonusAPIService) Get(order storage.MartOrder) (storage.MartOrder, error) {
+func (b *BonusAPIService) Get(order models.MartOrder) (models.MartOrder, error) {
 	var err error
 	remoteURL := "http://" + b.addr + "/api/orders/" + order.OrderID
 	client := resty.New()
@@ -132,27 +132,27 @@ func (b *BonusAPIService) Get(order storage.MartOrder) (storage.MartOrder, error
 
 	resp, err = client.R().Get(remoteURL)
 	if err != nil {
-		return storage.MartOrder{}, err
+		return models.MartOrder{}, err
 	}
 	if resp.StatusCode() == 200 {
 		logger.Log.Info("Accrual response - OK")
 		logger.Log.Info("Unmarshal next")
-		var respBody storage.MartOrder
+		var respBody models.MartOrder
 		err = json.Unmarshal(resp.Body(), &respBody)
 		logger.Log.Info("Accrual result", zap.Any("respBody", respBody))
 		if err != nil {
-			return storage.MartOrder{}, err
+			return models.MartOrder{}, err
 		}
 		logger.Log.Info("No errors with Unmarshal")
 		return respBody, nil
 	} else if resp.StatusCode() == 204 {
-		return storage.MartOrder{}, ErrNotRegistered
+		return models.MartOrder{}, ErrNotRegistered
 	} else if resp.StatusCode() == 429 {
-		return storage.MartOrder{}, ErrToManyRequests
+		return models.MartOrder{}, ErrToManyRequests
 	} else if resp.StatusCode() == 500 {
-		return storage.MartOrder{}, ErrInternalServerError
+		return models.MartOrder{}, ErrInternalServerError
 	} else {
-		return storage.MartOrder{}, fmt.Errorf("unexpected status code %d", resp.StatusCode())
+		return models.MartOrder{}, fmt.Errorf("unexpected status code %d", resp.StatusCode())
 	}
 
 }

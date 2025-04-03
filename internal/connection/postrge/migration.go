@@ -39,40 +39,6 @@ const (
 	CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 	CREATE INDEX IF NOT EXISTS idx_withdrawals_user_id ON withdrawals(user_id);
 	`
-
-	SearchUserQuery = `SELECT COUNT(*) FROM users WHERE login = $1;`
-	InsertUserQuery = `
-						INSERT INTO users (login, password_hash, created_at) 
-						VALUES ($1, $2, $3);
-						`
-	GetUserPasswordQuery     = `SELECT password_hash FROM users WHERE login = $1;`
-	SearchOrderByNumberQuery = `SELECT user_id from orders WHERE order_number = $1;`
-	IsOrderPresentQuery      = `SELECT COUNT(*) from orders WHERE order_number = $1 and user_id = $2;`
-	GetUIDByUserLoginQuery   = `SELECT id FROM users WHERE login = $1;`
-	InsertNewOrderQuery      = `
-							INSERT INTO orders (user_id, order_number, created_at, status, bonus_amount) 
-							VALUES ($1, $2, $3, $4, $5);`
-
-	GetOrdersByUID = `
-						SELECT order_number, status, bonus_amount, created_at 
-						FROM orders 
-						WHERE user_id = $1 
-						ORDER BY created_at DESC;`
-
-	GetWalletByUID = `SELECT balance, total_withdrawn from wallets WHERE user_id = $1;`
-
-	CreateUserWalletQuery = `INSERT INTO wallets (user_id, balance, total_withdrawn, created_at) VALUES ($1, $2, $3, $4);`
-	GetBalanceByUID       = `SELECT balance FROM wallets where user_id = $1;`
-	InsertWithdraw        = `INSERT INTO withdrawals (user_id, order_number, amount, created_at) VALUES ($1, $2, $3, $4);`
-	WithdrawUpdateBalance = `UPDATE wallets SET balance = balance - $1, total_withdrawn = total_withdrawn + $1 WHERE user_id = $2;`
-	GetWithdrawalsByUID   = `
-						SELECT order_number, amount, created_at 
-						FROM withdrawals 
-						WHERE user_id = $1 
-						ORDER BY created_at DESC;`
-	AccrualUpdateBalance = `UPDATE wallets SET balance = balance + $1 WHERE user_id = $2;`
-	UpdateOrder          = `UPDATE orders SET created_at = $1, status = $2 WHERE order_number = $3;`
-	UpdateOrderBonus     = `UPDATE orders SET bonus_amount = $1 WHERE order_number = $2`
 )
 
 /*

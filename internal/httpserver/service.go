@@ -1,25 +1,20 @@
 package httpserver
 
 import (
+	"github.com/Fuonder/goptherstore.git/internal/dbservices"
 	"github.com/Fuonder/goptherstore.git/internal/logger"
-	"github.com/Fuonder/goptherstore.git/internal/storage"
 	"go.uber.org/zap"
 	"net/http"
 )
 
 type Service struct {
-	apiSrv http.Server
-	st     storage.Storage
+	apiSrv     http.Server
+	DBServices *dbservices.DatabaseServices
 }
 
-func NewService(APIAddr string, st storage.Storage) (*Service, error) {
-	/* TODO:
-	   1. init handlers
-	   2. create router
-	   3. create server
-	*/
+func NewService(APIAddr string, DBServices *dbservices.DatabaseServices) (*Service, error) {
 
-	h := NewHandlers(st)
+	h := NewHandlers(DBServices)
 	r := NewRouterObject(*h)
 	router, err := r.GetRouter()
 	if err != nil {
@@ -31,7 +26,7 @@ func NewService(APIAddr string, st storage.Storage) (*Service, error) {
 			Addr:    APIAddr,
 			Handler: router,
 		},
-		st: st,
+		DBServices: DBServices,
 	}
 	return service, nil
 }

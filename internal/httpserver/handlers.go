@@ -5,9 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Fuonder/goptherstore.git/internal/auth"
+	"github.com/Fuonder/goptherstore.git/internal/dbservices"
 	"github.com/Fuonder/goptherstore.git/internal/logger"
-	"github.com/Fuonder/goptherstore.git/internal/storage"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/Fuonder/goptherstore.git/internal/models"
+	"github.com/Fuonder/goptherstore.git/internal/orders"
+	"github.com/Fuonder/goptherstore.git/internal/users"
+	"github.com/Fuonder/goptherstore.git/internal/wallets"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
@@ -16,48 +20,49 @@ import (
 )
 
 type Handlers struct {
-	st storage.Storage
+	userSrv   users.UserService
+	walletSrv wallets.WalletService
+	orderSrv  orders.OrderService
+	authSrv   auth.AuthService
 }
 
-func NewHandlers(st storage.Storage) *Handlers {
-	return &Handlers{st}
+func NewHandlers(DBServices *dbservices.DatabaseServices) *Handlers {
+	return &Handlers{userSrv: DBServices.UserSrv,
+		walletSrv: DBServices.WalletSrv,
+		orderSrv:  DBServices.OrderSrv,
+		authSrv:   DBServices.AuthSrv}
 }
 
 func (h Handlers) RootHandler(rw http.ResponseWriter, r *http.Request) {
 	logger.Log.Debug("RootHandler called")
-	rw.WriteHeader(http.StatusNotImplemented)
-	rw.Write([]byte("Not Implemented"))
+	SendResponse(rw, http.StatusNotImplemented, []byte("Not implemented"))
 }
 
 func (h Handlers) RegisterHandler(rw http.ResponseWriter, r *http.Request) {
 	logger.Log.Debug("RegisterHandler called")
 	if r.Header.Get("Content-Type") != "application/json" {
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte(http.StatusText(http.StatusBadRequest)))
+		SendResponse(rw, http.StatusBadRequest, []byte{})
 		return
 	}
 
-	var newUser storage.MartUser
+	var newUser models.MartUser
 
 	err := json.NewDecoder(r.Body).Decode(&newUser)
 	if err != nil {
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte(http.StatusText(http.StatusBadRequest)))
+		SendResponse(rw, http.StatusBadRequest, []byte{})
 		return
 	}
 	newUser.CreatedAt = time.Now()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	token, err := h.st.Register(ctx, newUser)
+	token, err := h.authSrv.Register(ctx, newUser)
 	if err != nil {
-		if errors.Is(err, storage.ErrUserAlreadyExists) {
-			rw.WriteHeader(http.StatusConflict)
-			rw.Write([]byte(http.StatusText(http.StatusConflict)))
+		if errors.Is(err, models.ErrUserAlreadyExists) {
+			SendResponse(rw, http.StatusConflict, []byte{})
 			return
 		}
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
 	http.SetCookie(rw, &http.Cookie{
@@ -67,38 +72,33 @@ func (h Handlers) RegisterHandler(rw http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 		Path:     "/",
 	})
-
-	rw.WriteHeader(http.StatusOK)
-	rw.Write([]byte("User created successfully"))
+	SendResponse(rw, http.StatusOK, []byte("User created successfully"))
 }
 func (h Handlers) LoginHandler(rw http.ResponseWriter, r *http.Request) {
 	logger.Log.Debug("LoginHandler called")
 	if r.Header.Get("Content-Type") != "application/json" {
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte(http.StatusText(http.StatusBadRequest)))
+		SendResponse(rw, http.StatusBadRequest, []byte{})
+		return
 	}
 
-	var user storage.MartUser
+	var user models.MartUser
 
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte(http.StatusText(http.StatusBadRequest)))
+		SendResponse(rw, http.StatusBadRequest, []byte{})
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	token, err := h.st.Login(ctx, user)
+	token, err := h.authSrv.Login(ctx, user)
 	if err != nil {
 		logger.Log.Debug("error", zap.Error(err))
-		if errors.Is(err, storage.ErrWrongCredentials) {
-			rw.WriteHeader(http.StatusUnauthorized)
-			rw.Write([]byte(http.StatusText(http.StatusUnauthorized)))
+		if errors.Is(err, models.ErrWrongCredentials) {
+			SendResponse(rw, http.StatusUnauthorized, []byte{})
 			return
 		}
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
 	http.SetCookie(rw, &http.Cookie{
@@ -109,28 +109,24 @@ func (h Handlers) LoginHandler(rw http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 	})
 
-	rw.WriteHeader(http.StatusOK)
-	rw.Write([]byte("User login success"))
+	SendResponse(rw, http.StatusOK, []byte("User login success"))
 }
 func (h Handlers) PostOrdersHandler(rw http.ResponseWriter, r *http.Request) {
 	logger.Log.Debug("PostOrdersHandler called")
 	if r.Header.Get("Content-Type") != "text/plain" {
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte(http.StatusText(http.StatusBadRequest)))
+		SendResponse(rw, http.StatusBadRequest, []byte{})
 		return
 	}
 
 	orderNumberBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		rw.WriteHeader(http.StatusUnprocessableEntity)
-		rw.Write([]byte(http.StatusText(http.StatusUnprocessableEntity)))
+		SendResponse(rw, http.StatusUnprocessableEntity, []byte{})
 		return
 	}
 	logger.Log.Info("GOT ORDER", zap.String("order", string(orderNumberBytes)))
 
 	if ok := isValidLuhn(string(orderNumberBytes)); !ok {
-		rw.WriteHeader(http.StatusUnprocessableEntity)
-		rw.Write([]byte(http.StatusText(http.StatusUnprocessableEntity)))
+		SendResponse(rw, http.StatusUnprocessableEntity, []byte{})
 		return
 	}
 
@@ -139,29 +135,24 @@ func (h Handlers) PostOrdersHandler(rw http.ResponseWriter, r *http.Request) {
 
 	UID, err := h.getUserID(ctx, r)
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
 
-	err = h.st.RegisterOrder(ctx, string(orderNumberBytes), UID)
+	err = h.orderSrv.RegisterOrder(ctx, string(orderNumberBytes), UID)
 	if err != nil {
-		if errors.Is(err, storage.ErrOrderAlreadyExists) {
-			rw.WriteHeader(http.StatusOK)
-			rw.Write([]byte(http.StatusText(http.StatusOK)))
+		if errors.Is(err, models.ErrOrderAlreadyExists) {
+			SendResponse(rw, http.StatusOK, []byte{})
 			return
-		} else if errors.Is(err, storage.ErrOrderOfOtherUser) {
-			rw.WriteHeader(http.StatusConflict)
-			rw.Write([]byte(http.StatusText(http.StatusConflict)))
+		} else if errors.Is(err, models.ErrOrderOfOtherUser) {
+			SendResponse(rw, http.StatusConflict, []byte{})
 			return
 		}
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
 
-	rw.WriteHeader(http.StatusAccepted)
-	rw.Write([]byte(http.StatusText(http.StatusAccepted)))
+	SendResponse(rw, http.StatusAccepted, []byte{})
 }
 
 func (h Handlers) GetOrdersHandler(rw http.ResponseWriter, r *http.Request) {
@@ -173,35 +164,26 @@ func (h Handlers) GetOrdersHandler(rw http.ResponseWriter, r *http.Request) {
 
 	UID, err := h.getUserID(ctx, r)
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		resp, _ := json.MarshalIndent(http.StatusText(http.StatusInternalServerError), "", "    ")
-		rw.Write(resp)
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
 
-	orders, err := h.st.GetOrdersByUID(ctx, UID)
+	ord, err := h.orderSrv.GetOrdersByUID(ctx, UID)
 	if err != nil {
-		if errors.Is(err, storage.ErrNoData) {
-			rw.WriteHeader(http.StatusNoContent)
-			resp, _ := json.MarshalIndent(http.StatusText(http.StatusNoContent), "", "    ")
-			rw.Write(resp)
+		if errors.Is(err, models.ErrNoData) {
+			SendResponse(rw, http.StatusNoContent, []byte{})
 			return
 		}
-		rw.WriteHeader(http.StatusInternalServerError)
-		resp, _ := json.MarshalIndent(http.StatusText(http.StatusInternalServerError), "", "    ")
-		rw.Write(resp)
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
 
-	resp, err := json.MarshalIndent(orders, "", "    ")
+	resp, err := json.MarshalIndent(ord, "", "    ")
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		resp, _ := json.MarshalIndent(http.StatusText(http.StatusInternalServerError), "", "    ")
-		rw.Write(resp)
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
-	rw.WriteHeader(http.StatusOK)
-	rw.Write(resp)
+	SendResponse(rw, http.StatusOK, resp)
 }
 func (h Handlers) GetBalanceHandler(rw http.ResponseWriter, r *http.Request) {
 	logger.Log.Debug("GetBalanceHandler called")
@@ -212,49 +194,38 @@ func (h Handlers) GetBalanceHandler(rw http.ResponseWriter, r *http.Request) {
 
 	UID, err := h.getUserID(ctx, r)
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		resp, _ := json.MarshalIndent(http.StatusText(http.StatusInternalServerError), "", "    ")
-		rw.Write(resp)
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
 
-	wallet, err := h.st.GetUserBalance(ctx, UID)
+	wallet, err := h.walletSrv.GetUserBalance(ctx, UID)
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		resp, _ := json.MarshalIndent(http.StatusText(http.StatusInternalServerError), "", "    ")
-		rw.Write(resp)
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
 
 	resp, err := json.MarshalIndent(wallet, "", "    ")
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		resp, _ := json.MarshalIndent(http.StatusText(http.StatusInternalServerError), "", "    ")
-		rw.Write(resp)
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
-
-	rw.WriteHeader(http.StatusOK)
-	rw.Write(resp)
+	SendResponse(rw, http.StatusOK, resp)
 }
 func (h Handlers) PostWithdrawHandler(rw http.ResponseWriter, r *http.Request) {
 	logger.Log.Debug("PostWithdrawHandler called")
 	if r.Header.Get("Content-Type") != "application/json" {
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte(http.StatusText(http.StatusBadRequest)))
+		SendResponse(rw, http.StatusBadRequest, []byte{})
 		return
 	}
-	var withdraw storage.Withdrawal
+	var withdraw models.Withdrawal
 
 	err := json.NewDecoder(r.Body).Decode(&withdraw)
 	if err != nil {
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte(http.StatusText(http.StatusBadRequest)))
+		SendResponse(rw, http.StatusBadRequest, []byte{})
 		return
 	}
 	if ok := isValidLuhn(withdraw.OrderID); !ok {
-		rw.WriteHeader(http.StatusUnprocessableEntity)
-		rw.Write([]byte(http.StatusText(http.StatusUnprocessableEntity)))
+		SendResponse(rw, http.StatusUnprocessableEntity, []byte{})
 		return
 	}
 
@@ -263,31 +234,26 @@ func (h Handlers) PostWithdrawHandler(rw http.ResponseWriter, r *http.Request) {
 
 	UID, err := h.getUserID(ctx, r)
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
 	withdraw.UserID = UID
 	withdraw.CreatedAt = time.Now()
 
-	err = h.st.RegisterWithdraw(ctx, withdraw)
+	err = h.walletSrv.RegisterWithdraw(ctx, withdraw)
 	if err != nil {
-		if errors.Is(err, storage.ErrNotEnoughBonuses) {
-			rw.WriteHeader(402)
-			rw.Write([]byte(err.Error()))
+		if errors.Is(err, models.ErrNotEnoughBonuses) {
+			SendResponse(rw, 402, []byte(err.Error()))
 			return
-		} else if errors.Is(err, storage.ErrInvalidOrderNumber) {
-			rw.WriteHeader(http.StatusUnprocessableEntity)
-			rw.Write([]byte(http.StatusText(http.StatusUnprocessableEntity)))
+		} else if errors.Is(err, models.ErrInvalidOrderNumber) {
+			SendResponse(rw, http.StatusUnprocessableEntity, []byte{})
 			return
 		}
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
 
-	rw.WriteHeader(http.StatusOK)
-	rw.Write([]byte(http.StatusText(http.StatusOK)))
+	SendResponse(rw, http.StatusOK, []byte{})
 }
 func (h Handlers) GetWithdrawalsHandler(rw http.ResponseWriter, r *http.Request) {
 	logger.Log.Debug("GetWithdrawalsHandler called")
@@ -298,33 +264,25 @@ func (h Handlers) GetWithdrawalsHandler(rw http.ResponseWriter, r *http.Request)
 
 	UID, err := h.getUserID(ctx, r)
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
-	withdrawals, err := h.st.GetWithdrawals(ctx, UID)
+	withdrawals, err := h.walletSrv.GetWithdrawals(ctx, UID)
 	if err != nil {
-		if errors.Is(err, storage.ErrNoData) {
-			rw.WriteHeader(http.StatusNoContent)
-			resp, _ := json.MarshalIndent(http.StatusText(http.StatusNoContent), "", "    ")
-			rw.Write(resp)
+		if errors.Is(err, models.ErrNoData) {
+			SendResponse(rw, http.StatusNoContent, []byte{})
 			return
 		}
-		rw.WriteHeader(http.StatusInternalServerError)
-		resp, _ := json.MarshalIndent(http.StatusText(http.StatusInternalServerError), "", "    ")
-		rw.Write(resp)
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
 
 	resp, err := json.MarshalIndent(withdrawals, "", "    ")
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		SendResponse(rw, http.StatusInternalServerError, []byte{})
 		return
 	}
-
-	rw.WriteHeader(http.StatusOK)
-	rw.Write(resp)
+	SendResponse(rw, http.StatusOK, resp)
 }
 
 func (h Handlers) AuthMiddleware(next http.Handler) http.Handler {
@@ -333,23 +291,17 @@ func (h Handlers) AuthMiddleware(next http.Handler) http.Handler {
 
 		cookie, err := r.Cookie("auth_token")
 		if err != nil || cookie == nil {
-			rw.WriteHeader(http.StatusUnauthorized)
-			rw.Write([]byte("Missing or invalid token"))
+			SendResponse(rw, http.StatusUnauthorized, []byte("Missing or invalid token"))
 			return
 		}
 
-		tokenString := cookie.Value
-		token, err := jwt.ParseWithClaims(tokenString, &storage.Claims{}, func(token *jwt.Token) (interface{}, error) {
-			// Ensure the token uses the correct signing method
-			if token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
-				return nil, fmt.Errorf("unexpected signing method %v", token.Method.Alg())
-			}
-			return h.st.GetKey(), nil
-		})
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 
-		if err != nil || !token.Valid {
-			rw.WriteHeader(http.StatusUnauthorized)
-			rw.Write([]byte("Invalid token"))
+		tokenString := cookie.Value
+		err = h.authSrv.ValidateJWT(ctx, tokenString)
+		if err != nil {
+			SendResponse(rw, http.StatusUnauthorized, []byte("Invalid token"))
 			return
 		}
 
@@ -360,29 +312,14 @@ func (h Handlers) AuthMiddleware(next http.Handler) http.Handler {
 func (h Handlers) getUserID(ctx context.Context, r *http.Request) (int, error) {
 	cookie, err := r.Cookie("auth_token")
 	if err != nil {
-		if err == http.ErrNoCookie {
+		if errors.Is(err, http.ErrNoCookie) {
 			// If the cookie is not found, return an error
 			return 0, fmt.Errorf("cookie not found")
 		}
 		return 0, fmt.Errorf("error retrieving cookie: %v", err)
 	}
 	tokenString := cookie.Value
-	token, err := jwt.ParseWithClaims(tokenString, &storage.Claims{}, func(token *jwt.Token) (interface{}, error) {
-		// Ensure the token uses the correct signing method
-		if token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
-			return nil, fmt.Errorf("unexpected signing method %v", token.Method.Alg())
-		}
-		return h.st.GetKey(), nil
-	})
-	if err != nil || !token.Valid {
-		return 0, fmt.Errorf("invalid token: %v", err)
-	}
-	claims, ok := token.Claims.(*storage.Claims)
-	if !ok || !token.Valid {
-		return 0, fmt.Errorf("invalid token")
-	}
-
-	UID, err := h.st.GetUID(ctx, claims.Username)
+	UID, err := h.authSrv.GetUIDFromJWT(ctx, tokenString)
 	if err != nil {
 		return 0, fmt.Errorf("error retrieving user ID: %v", err)
 	}
@@ -414,4 +351,14 @@ func isValidLuhn(number string) bool {
 	}
 
 	return sum%10 == 0
+}
+
+func SendResponse(rw http.ResponseWriter, status int, message []byte) {
+	rw.WriteHeader(status)
+	if len(message) == 0 {
+		_, _ = rw.Write([]byte(http.StatusText(status)))
+		return
+	}
+	_, _ = rw.Write(message)
+	return
 }
