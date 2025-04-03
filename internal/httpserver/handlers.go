@@ -360,5 +360,4 @@ func SendResponse(rw http.ResponseWriter, status int, message []byte) {
 		return
 	}
 	_, _ = rw.Write(message)
-	return
 }
